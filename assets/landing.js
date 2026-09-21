@@ -25,13 +25,14 @@ const CONFIG = {
   camera: { pos: [0, 0.9, 13.4], target: [0, -0.05, 0], fov: 30 },
   // 30 / 20 / 50 layout: copy left, white spawn column in the middle (screen centre at 40%),
   // PC centred in the right 50% (NDC x = 0.5). spawnDist = distance from the camera where parts
-  // appear; spawnFit = largest part width (units) that fits the column at that distance.
-  layout: { split: 0.5, minAspect: 1.15, spawnDist: 12.8, spawnFit: 2.25, spawnNdcX: -0.2 },
+  // appear; spawnFit = the size (units) every part is presented at in the column.
+  layout: { split: 0.5, minAspect: 1.15, spawnDist: 12.8, spawnFit: 2.1, spawnNdcX: -0.2 },
   rig: { rotY: -0.48, mouseYaw: 0.13, mousePitch: 0.05 },   // 3/4 view + cursor parallax
 
   // case.glb → normalised 3.92 x 4.4 x 1.99. Open side +Z, front +X.
   case: {
     file: 'models/case.glb', size: 4.4, rot: [0, 0, 0], pos: [0, 0, 0],
+    tint: 0x1a1a1c,                 // albedo multiplier: turns the white scan into a black case
     // window cut into the PSU shroud front so the PSU bay is visible
     cut: { min: [-1.62, -1.8, -0.95], max: [-0.25, -1.2, 1.15] },
   },
@@ -110,19 +111,15 @@ const CONFIG = {
       pts: [[-1.2, 1.92, -0.9], [-1.2, 1.93, -0.55], [-1.19, 1.9, -0.26], [-1.18, 1.8, -0.2], [-1.18, 1.7, -0.3], [-1.18, 1.645, -0.46]],
       pins: 4, rows: 2, w: [1, 0, 0], plugDepth: 0.13, grommet: [-1.2, 1.9, -0.78, 0.3, 0.14],
     },
-    { // GPU 8-pin #1: lower right grommet → power block on the card's outer edge
-      // (block measured at world x -0.49..-0.23, y -0.21..0.0, face z 0.73). Runs level
-      // along the top of the card, well inside the glass (z <= 0.9), then drops into the plug.
-      pts: [[1.42, -0.5, -0.9], [1.42, -0.5, -0.5], [1.32, -0.42, 0.15], [1.0, -0.26, 0.66], [0.45, -0.13, 0.88], [-0.1, -0.1, 0.9], [-0.265, -0.1, 0.86], [-0.265, -0.1, 0.74]],
+    { // GPU: a single 8-pin. The card's power block is 0.26 wide = one connector, not two.
+      // Lower right grommet → level along the top of the card, inside the glass (z <= 0.9),
+      // then drops into the block (world x -0.49..-0.23, y -0.21..0.0, face z 0.73).
+      pts: [[1.42, -0.5, -0.9], [1.42, -0.5, -0.5], [1.32, -0.42, 0.15], [1.0, -0.26, 0.66], [0.45, -0.13, 0.88], [-0.15, -0.1, 0.9], [-0.36, -0.1, 0.86], [-0.36, -0.1, 0.74]],
       pins: 4, rows: 2, w: [1, 0, 0], plugDepth: 0.13, grommet: [1.42, -0.5, -0.78, 0.16, 0.42],
     },
-    { // GPU 8-pin #2 (beside #1, toward the rear)
-      pts: [[1.42, -0.5, -0.9], [1.42, -0.5, -0.5], [1.34, -0.44, 0.1], [1.05, -0.3, 0.62], [0.5, -0.16, 0.9], [-0.3, -0.11, 0.92], [-0.455, -0.1, 0.86], [-0.455, -0.1, 0.74]],
-      pins: 4, rows: 2, w: [1, 0, 0], plugDepth: 0.13,
-    },
-    { // PSU modular leads: out of the PSU face, behind the shroud panel
+    { // PSU modular leads: two 8-pin stubs out of the PSU face, behind the shroud panel
       pts: [[-1.3, -1.4, 0.72], [-1.2, -1.4, 0.84], [-0.75, -1.42, 0.86], [-0.3, -1.45, 0.78], [-0.05, -1.47, 0.62]],
-      pins: 6, rows: 2, w: [0, 1, 0], plugDepth: 0.12, plugAt: 'start', combs: [0.5],
+      pins: 4, rows: 2, w: [0, 1, 0], plugDepth: 0.12, plugAt: 'start', combs: [0.5],
     },
     {
       pts: [[-1.0, -1.62, 0.72], [-0.9, -1.62, 0.84], [-0.5, -1.63, 0.86], [-0.2, -1.65, 0.78], [-0.05, -1.66, 0.62]],
@@ -290,7 +287,7 @@ const plugMat = new THREE.MeshStandardMaterial({ color: 0x1c1c20, roughness: 0.5
 const rubberMat = new THREE.MeshStandardMaterial({ color: 0x0c0c0e, roughness: 0.95, metalness: 0.0 });
 
 const PITCH = 0.04;           // wire pitch (4.2 mm on a 10.5 cm = 1 unit scale)
-const WIRE_R = 0.0135;        // sleeved wire radius (18 AWG + sleeve ≈ 3 mm)
+const WIRE_R = 0.019;         // sleeved wires touch their neighbours, so a bundle reads as one ribbon
 
 function makeCable(def) {
   const pts = def.pts.map((p) => new THREE.Vector3(...p));
@@ -427,6 +424,7 @@ async function build() {
   casePivot.traverse((o) => { if (o.isMesh && o.material) caseMeshes.push(o); });
   caseMeshes.forEach((o) => {
     o.material = o.material.clone();
+    o.material.color.set(CONFIG.case.tint);          // black case (the scan is white; tint the albedo)
     o.material.clippingPlanes = cutPlanesWorld;
     o.material.clipIntersection = true;
     // dark inner shell so the cut window reveals a black cavity, not the mirrored exterior
@@ -474,7 +472,7 @@ async function build() {
       holder.userData.id = def.id;
       inst.from = spawnLocal(CONFIG.layout.spawnNdcX + (i - (instances.length - 1) / 2) * 0.05, 0.03);
       inst.fromRot = showRotFor(def.showRot);
-      inst.fromScale = Math.min(1, CONFIG.layout.spawnFit / def.size);   // big parts shrink to fit the column
+      inst.fromScale = CONFIG.layout.spawnFit / def.size;   // every part is presented at the same size
       holder.position.set(...inst.from);
       holder.rotation.set(...inst.fromRot);
       holder.scale.setScalar(0.0001);

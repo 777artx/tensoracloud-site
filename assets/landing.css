@@ -1,7 +1,7 @@
 :root {
-  --bg: #000000;
-  --fg: #ffffff;
-  --muted: rgba(255, 255, 255, 0.62);
+  --bg: #ffffff;
+  --fg: #0a0a0a;
+  --muted: rgba(0, 0, 0, 0.55);
   --line: rgba(255, 255, 255, 0.14);
   --accent: #f5841f;                 /* the docs orange */
   --steps: 10;
@@ -13,7 +13,7 @@
 
 * { box-sizing: border-box; }
 
-html { background: var(--bg); color-scheme: dark; scroll-behavior: auto; }
+html { background: var(--bg); color-scheme: light; scroll-behavior: auto; }
 
 body {
   margin: 0;
@@ -52,56 +52,26 @@ a { color: inherit; text-decoration: none; }
   display: block;
 }
 
-/* mostly-black background with old-TV "snow": sparse white pixels that flicker.
-   Two thresholded-noise layers (2px and 3px blocks, different seeds/timings) behind
-   the PC, plus a very fine film grain over everything. */
+/* white page; the orange 20% spawn column sits in the middle of the 30 / 20 / 50 layout.
+   Both are under the canvas so parts spawn on top of them. */
 .texture {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background: #000;
-  overflow: hidden;
+  background: #fff;
 }
 
-.texture::before,
-.texture::after {
-  content: "";
-  position: absolute;
-  inset: -100%;
-  width: 300%;
-  height: 300%;
-  image-rendering: pixelated;
-}
-
-.texture::before {
-  /* 2px snow: only the brightest ~12% of noise pixels survive the threshold */
-  opacity: 0.55;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='s' x='0' y='0'><feTurbulence type='fractalNoise' baseFrequency='1.9' numOctaves='1' seed='7' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/><feComponentTransfer><feFuncR type='discrete' tableValues='0 0 0 0 0 0 0 1'/><feFuncG type='discrete' tableValues='0 0 0 0 0 0 0 1'/><feFuncB type='discrete' tableValues='0 0 0 0 0 0 0 1'/></feComponentTransfer></filter><rect width='100%' height='100%' filter='url(%23s)'/></svg>");
-  background-size: 320px 320px;
-  animation: snow 0.42s steps(6) infinite;
-}
-
-.texture::after {
-  /* 3px snow, sparser and dimmer, out of phase with the first layer */
-  opacity: 0.32;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='s' x='0' y='0'><feTurbulence type='fractalNoise' baseFrequency='2.4' numOctaves='1' seed='19' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/><feComponentTransfer><feFuncR type='discrete' tableValues='0 0 0 0 0 0 0 0 0 1'/><feFuncG type='discrete' tableValues='0 0 0 0 0 0 0 0 0 1'/><feFuncB type='discrete' tableValues='0 0 0 0 0 0 0 0 0 1'/></feComponentTransfer></filter><rect width='100%' height='100%' filter='url(%23s)'/></svg>");
-  background-size: 360px 360px;
-  animation: snow 0.55s steps(5) infinite reverse;
-}
-
-/* 30 / 20 / 50: white copy column, orange spawn column, black PC side.
-   Both sit under the canvas so parts spawn on top of them. */
-.column,
-.column--left {
+.column {
   position: absolute;
   top: 0;
   bottom: 0;
+  left: 30%;
+  width: 20%;
   z-index: 0;
+  background: var(--accent);
 }
 
-.column--left { left: 0; width: 30%; background: #fff; }
-.column { left: 30%; width: 20%; background: var(--accent); }
-
+/* very fine animated film grain over everything, multiplied so it reads on white */
 .grain {
   position: absolute;
   inset: -100%;
@@ -109,9 +79,9 @@ a { color: inherit; text-decoration: none; }
   height: 300%;
   pointer-events: none;
   z-index: 3;
-  opacity: 0.1;
-  mix-blend-mode: screen;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n' x='0' y='0'><feTurbulence type='fractalNoise' baseFrequency='1.25' numOctaves='1' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/><feComponentTransfer><feFuncR type='gamma' amplitude='1' exponent='1.8'/><feFuncG type='gamma' amplitude='1' exponent='1.8'/><feFuncB type='gamma' amplitude='1' exponent='1.8'/></feComponentTransfer></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  opacity: 0.16;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n' x='0' y='0'><feTurbulence type='fractalNoise' baseFrequency='1.25' numOctaves='1' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/><feComponentTransfer><feFuncR type='gamma' amplitude='1' exponent='0.6'/><feFuncG type='gamma' amplitude='1' exponent='0.6'/><feFuncB type='gamma' amplitude='1' exponent='0.6'/></feComponentTransfer></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
   background-size: 300px 300px;
   animation: grain 0.9s steps(6) infinite;
 }
@@ -122,16 +92,6 @@ a { color: inherit; text-decoration: none; }
   40%  { transform: translate(3%, -5%); }
   60%  { transform: translate(-6%, -2%); }
   80%  { transform: translate(5%, 6%); }
-  100% { transform: translate(0, 0); }
-}
-
-@keyframes snow {
-  0%   { transform: translate(0, 0); }
-  17%  { transform: translate(-9%, 5%); }
-  34%  { transform: translate(6%, -11%); }
-  51%  { transform: translate(-13%, -4%); }
-  68%  { transform: translate(10%, 9%); }
-  85%  { transform: translate(-4%, 13%); }
   100% { transform: translate(0, 0); }
 }
 
@@ -274,7 +234,7 @@ a { color: inherit; text-decoration: none; }
   top: 2px;
   bottom: 2px;
   width: 1px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.12);
   transform: translateX(-50%);
 }
 
@@ -296,12 +256,12 @@ a { color: inherit; text-decoration: none; }
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #000;
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.3);
   transition: background 0.3s, transform 0.3s, border-color 0.3s;
 }
 
-.rail span.done { background: #fff; border-color: #fff; }
+.rail span.done { background: #000; border-color: #000; }
 .rail span.active { background: var(--accent); border-color: var(--accent); transform: scale(1.7); }
 
 /* ---------------------------------------------------------------- scroll hint */
@@ -319,7 +279,7 @@ a { color: inherit; text-decoration: none; }
   font-size: 11px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(0, 0, 0, 0.5);
   transition: opacity 0.5s;
 }
 
@@ -359,7 +319,7 @@ a { color: inherit; text-decoration: none; }
 .loader__bar {
   width: 180px;
   height: 1px;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.12);
   overflow: hidden;
 }
 
@@ -375,7 +335,7 @@ a { color: inherit; text-decoration: none; }
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.2em;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(0, 0, 0, 0.5);
 }
 
 /* ---------------------------------------------------------------- footer strip */
@@ -390,7 +350,7 @@ a { color: inherit; text-decoration: none; }
   align-items: flex-end;
   padding: 0 28px 22px var(--gutter);
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(0, 0, 0, 0.45);
   pointer-events: none;
 }
 
@@ -428,9 +388,7 @@ a { color: inherit; text-decoration: none; }
   .rail { display: none; }
   .foot { padding-left: 24px; }
   .foot__links { display: none; }
-  .column, .column--left { display: none; }
-  .step h1, .step h2 { color: #fff; }
-  .foot__brand span { color: rgba(255, 255, 255, 0.4); }
+  .column { display: none; }
 }
 
 @media (max-width: 720px) {

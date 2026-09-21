@@ -504,7 +504,7 @@ function frame() {
 
   mouseSmooth.lerp(mouse, 0.045);
   if (!controls) {
-    finale.spin = f > 0 ? finale.spin + dt * 0.3 * f : 0;   // slow turn, ~20 s per revolution; unwinds when scrolling back
+    finale.spin = f > 0 ? finale.spin + dt * 0.11 * f : 0;  // slow turn, ~1 min per revolution; unwinds when scrolling back
     const parallax = mouseSmooth.x * CONFIG.rig.mouseYaw * (1 - f);
     rig.rotation.y = CONFIG.rig.rotY + parallax + finale.spin * f;
     rig.rotation.x = mouseSmooth.y * CONFIG.rig.mousePitch * (1 - f);

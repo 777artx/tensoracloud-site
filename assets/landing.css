@@ -231,8 +231,8 @@ a { color: inherit; text-decoration: none; }
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 12vh;
-  margin: 0 auto;
+  top: 50%;
+  margin: -26px auto 0;             /* half the height: dead centre of the frame */
   width: fit-content;
   z-index: 20;
   display: flex;

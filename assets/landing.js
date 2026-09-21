@@ -344,6 +344,9 @@ async function build() {
 /* ------------------------------------------------------------------------ */
 
 const stepEls = [...document.querySelectorAll('.step')];
+const rail = document.getElementById('rail');
+stepEls.forEach(() => rail.appendChild(document.createElement('span')));
+const railDots = [...rail.children];
 const hint = document.getElementById('hint');
 const hdrStep = document.getElementById('hdr-step');
 const hdrLabel = document.getElementById('hdr-label');
@@ -370,6 +373,7 @@ function buildTimeline() {
       scrub: 1.4,
       onUpdate: (self) => {
         const i = Math.min(CONFIG.steps - 1, Math.floor(self.progress * CONFIG.steps + 0.35));
+        railDots.forEach((d, k) => { d.classList.toggle('active', k === i); d.classList.toggle('done', k < i); });
         hint.classList.toggle('hidden', self.progress > 0.02);
         if (i !== lastStep) {
           lastStep = i;

@@ -51,9 +51,6 @@
       <a class="header__logo" href="index.html" aria-label="Tensora">
         <img src="images/brand/logo-header-white.png?v=5" alt="Tensora" width="290" height="56" />
       </a>
-      <div class="header__status" aria-hidden="true">
-        <i></i><span id="hdr-label">Empty case</span><b id="hdr-step">00 / 07</b>
-      </div>
       <nav class="header__nav" aria-label="Actions">
         <a href="docs.html">Docs</a>
         <a href="https://x.com/tensoracloud" target="_blank" rel="noopener noreferrer">X</a>
@@ -65,7 +62,7 @@
   <!-- 3D stage (fixed) -->
   <div id="stage" aria-hidden="true">
     <div class="texture"></div>
-    <div class="column"></div>
+    <canvas class="column" id="column" width="120" height="360"></canvas>
     <canvas id="scene"></canvas>
     <div class="grain"></div>
   </div>
@@ -79,13 +76,18 @@
     <section class="step" data-step="4"><h2>Jobs, requests, compute usage, and USDC spend, visible as they happen.</h2></section>
     <section class="step" data-step="5"><h2>Find and buy GPU capacity across providers from one place.</h2></section>
     <section class="step" data-step="6"><h2>Fund once with USDC and pay as models, compute, and tools are used.</h2></section>
-    <section class="step" data-step="7"><h2>When software needs infrastructure, it goes to Tensora.</h2></section>
   </div>
 
-  <!-- scroll hint -->
-  <!-- progress dots -->
-  <div class="rail" id="rail" aria-hidden="true"></div>
+  <!-- step title, right edge -->
+  <div class="mark" id="mark" aria-hidden="true">
+    <span id="hdr-label">Empty case</span>
+    <b id="hdr-step">00 / 07</b>
+  </div>
 
+  <!-- final call to action -->
+  <a class="launch" id="launch" href="https://app.tensoracloud.xyz/lab/home">Launch App <span aria-hidden="true">↗</span></a>
+
+  <!-- scroll hint -->
   <div class="hint" id="hint" aria-hidden="true"><span>Scroll to build</span><i></i></div>
 
   <!-- footer strip -->

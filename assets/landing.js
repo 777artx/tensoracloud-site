@@ -122,11 +122,19 @@ const camera = new THREE.PerspectiveCamera(CONFIG.camera.fov, window.innerWidth 
 camera.position.set(...CONFIG.camera.pos);
 const camTarget = new THREE.Vector3(...CONFIG.camera.target);
 
-/** place the PC in the right half of the viewport on wide screens */
+// final-scene state, driven by the scroll timeline on the last step
+const finale = {
+  center: 0,      // 0 = split layout (PC in the right half), 1 = PC centred
+  dissolve: 0,    // orange column: 0 = solid, 1 = fully dissolved to white
+  float: 0,       // 0 = cursor parallax, 1 = free floating + slow spin
+  spin: 0,        // accumulated spin angle (rad)
+};
+
+/** place the PC in the right half of the viewport on wide screens (blended to centre at the end) */
 function layout() {
   const aspect = window.innerWidth / window.innerHeight;
   const halfW = Math.tan(THREE.MathUtils.degToRad(CONFIG.camera.fov / 2)) * CONFIG.camera.pos[2] * aspect;
-  const shift = aspect >= CONFIG.layout.minAspect ? halfW * CONFIG.layout.split : 0;
+  const shift = (aspect >= CONFIG.layout.minAspect ? halfW * CONFIG.layout.split : 0) * (1 - finale.center);
   camera.position.x = CONFIG.camera.pos[0] - shift;
   camTarget.x = CONFIG.camera.target[0] - shift;
   camera.aspect = aspect;
@@ -134,6 +142,39 @@ function layout() {
 }
 layout();
 camera.lookAt(camTarget);
+
+/* orange spawn column, drawn on a low-res canvas so it can dissolve grain by grain */
+const column = (() => {
+  const el = document.getElementById('column');
+  const ctx = el.getContext('2d');
+  const W = el.width, H = el.height;
+  const N = W * H;
+  const noise = new Float32Array(N);
+  for (let i = 0; i < N; i++) noise[i] = Math.random();
+  const img = ctx.createImageData(W, H);
+  const px = img.data;
+  const accent = [0xf5, 0x84, 0x1f];
+  let drawn = -1;
+  const draw = () => {
+    const t = finale.dissolve;
+    if (t <= 0) { if (drawn !== 0) { ctx.fillStyle = '#f5841f'; ctx.fillRect(0, 0, W, H); drawn = 0; } return; }
+    if (t >= 1) { if (drawn !== 1) { ctx.clearRect(0, 0, W, H); drawn = 1; } return; }
+    // grains vanish in random order; a little flicker on the ones about to go
+    const edge = 0.08;
+    for (let i = 0, j = 0; i < N; i++, j += 4) {
+      const n = noise[i];
+      let a;
+      if (n > t + edge) a = 255;
+      else if (n < t - edge * 0.25) a = 0;
+      else a = Math.random() < (n - (t - edge * 0.25)) / (edge * 1.25) ? 255 : 0;
+      px[j] = accent[0]; px[j + 1] = accent[1]; px[j + 2] = accent[2]; px[j + 3] = a;
+    }
+    ctx.putImageData(img, 0, 0);
+    drawn = t;
+  };
+  draw();
+  return { draw };
+})();
 
 // environment for reflections (no external HDR needed)
 const pmrem = new THREE.PMREMGenerator(renderer);
@@ -344,10 +385,9 @@ async function build() {
 /* ------------------------------------------------------------------------ */
 
 const stepEls = [...document.querySelectorAll('.step')];
-const rail = document.getElementById('rail');
-stepEls.forEach(() => rail.appendChild(document.createElement('span')));
-const railDots = [...rail.children];
 const hint = document.getElementById('hint');
+const launchEl = document.getElementById('launch');
+gsap.set(launchEl, { xPercent: -50, autoAlpha: 0 });
 const hdrStep = document.getElementById('hdr-step');
 const hdrLabel = document.getElementById('hdr-label');
 const copyEl = document.getElementById('copy');
@@ -373,7 +413,6 @@ function buildTimeline() {
       scrub: 1.4,
       onUpdate: (self) => {
         const i = Math.min(CONFIG.steps - 1, Math.floor(self.progress * CONFIG.steps + 0.35));
-        railDots.forEach((d, k) => { d.classList.toggle('active', k === i); d.classList.toggle('done', k < i); });
         hint.classList.toggle('hidden', self.progress > 0.02);
         if (i !== lastStep) {
           lastStep = i;
@@ -394,11 +433,10 @@ function buildTimeline() {
       tl.set(el, { autoAlpha: 1 }, inAt);
       tl.fromTo(words, { y: 34, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: 'power3.out', stagger: 0.03 }, inAt + 0.02);
     }
-    if (i !== CONFIG.finalStep) {
-      const outAt = base + 0.74;
-      tl.to(words, { y: -26, opacity: 0, duration: 0.22, ease: 'power2.in', stagger: 0.015 }, outAt);
-      tl.set(el, { autoAlpha: 0 }, outAt + 0.26);
-    }
+    // every sentence leaves before the next step (the final step has no copy at all)
+    const outAt = base + 0.74;
+    tl.to(words, { y: -26, opacity: 0, duration: 0.22, ease: 'power2.in', stagger: 0.015 }, outAt);
+    tl.set(el, { autoAlpha: 0 }, outAt + 0.26);
   });
 
   // parts: pop into the white centre column (sharp, centred, head-on) → hold → glide to the
@@ -420,9 +458,14 @@ function buildTimeline() {
     });
   }
 
-  // final: a touch more interior light
+  // final: the orange column dissolves to white grain by grain, the PC glides to the centre,
+  // lets go of the cursor and floats / turns slowly, then the call to action rises in
   const fb = CONFIG.finalStep * STEP;
   tl.to(inner, { intensity: 4, duration: 0.5 }, fb);
+  tl.to(finale, { dissolve: 1, duration: 0.55, ease: 'none' }, fb + 0.02);
+  tl.to(finale, { center: 1, duration: 0.6, ease: 'power2.inOut' }, fb + 0.1);
+  tl.to(finale, { float: 1, duration: 0.5, ease: 'power2.inOut' }, fb + 0.2);
+  tl.fromTo(launchEl, { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: 0.35, ease: 'power3.out' }, fb + 0.55);
 
   // pin the timeline length to exactly `steps` so scroll progress maps 1:1 to step index
   tl.set({}, {}, CONFIG.steps * STEP);
@@ -453,21 +496,31 @@ window.addEventListener('pointermove', (e) => {
 });
 
 const clock = new THREE.Clock();
+let lastCenter = -1;
 function frame() {
+  const dt = Math.min(clock.getDelta(), 0.05);
   const t = clock.getElapsedTime();
-  idle.position.y = Math.sin(t * 0.6) * 0.02;
+  const f = finale.float;
+  // idle breathing grows into a real float at the end
+  idle.position.y = Math.sin(t * 0.6) * (0.02 + 0.12 * f);
   idle.rotation.y = Math.sin(t * 0.35) * 0.012;
+  idle.rotation.x = Math.sin(t * 0.45 + 1.2) * 0.035 * f;
+  idle.rotation.z = Math.sin(t * 0.3 + 0.4) * 0.02 * f;
 
   mouseSmooth.lerp(mouse, 0.045);
   if (!controls) {
-    rig.rotation.y = CONFIG.rig.rotY + mouseSmooth.x * CONFIG.rig.mouseYaw;
-    rig.rotation.x = mouseSmooth.y * CONFIG.rig.mousePitch;
+    finale.spin = f > 0 ? finale.spin + dt * 0.3 * f : 0;   // slow turn, ~20 s per revolution; unwinds when scrolling back
+    const parallax = mouseSmooth.x * CONFIG.rig.mouseYaw * (1 - f);
+    rig.rotation.y = CONFIG.rig.rotY + parallax + finale.spin * f;
+    rig.rotation.x = mouseSmooth.y * CONFIG.rig.mousePitch * (1 - f);
+    if (finale.center !== lastCenter) { layout(); lastCenter = finale.center; }
     camera.lookAt(camTarget);
     // copy drifts the opposite way to the PC for depth
     copyEl.style.transform = `translate3d(${mouseSmooth.x * -10}px, ${mouseSmooth.y * -6}px, 0)`;
   } else {
     controls.update();
   }
+  column.draw();
 
   scene.updateMatrixWorld();
   if (caseHolder) {

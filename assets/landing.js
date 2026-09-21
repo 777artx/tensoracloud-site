@@ -7,7 +7,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 gsap.registerPlugin(ScrollTrigger);
 
 /* ------------------------------------------------------------------------ */
-/*  CONFIG – every position is in "case space": case is centred at origin,   */
+/*  CONFIG - every position is in "case space": case is centred at origin,   */
 /*  its open side faces +Z (towards the camera), front panel is +X.          */
 /*  Slot positions were measured on the meshes (ortho render + raycast).     */
 /* ------------------------------------------------------------------------ */
@@ -80,9 +80,10 @@ const CONFIG = {
     },
     {
       // length X, heatsink +Y, connector +X → flat on the board, heatsink +Z
+      // seated in the board's open M.2 slot (key at local x +0.19, pad z -0.096) below the x16 slot
       id: 'ssd', step: 4, file: 'models/ssd.glb', size: 0.76,
       rot: [Math.PI / 2, 0, 0],
-      pos: onBoard(-0.05, -1.2, -0.132), via: onBoard(-0.05, -1.2, 0.45), rotEnd: [0, 0, 0],
+      pos: onBoard(-0.19, -0.64, -0.071), via: onBoard(-0.19, -0.64, 0.6), rotEnd: [0, 0, 0],
       from: [3.8, -0.5, 0.9], fromRot: [0.5, -0.7, 0.9],
       fallback: [0.76, 0.2, 0.05],
     },
@@ -106,7 +107,7 @@ const CONFIG = {
     },
   ],
 
-  // cables: real routing – they come out of the tray grommets behind the board and
+  // cables: real routing - they come out of the tray grommets behind the board and
   // plug straight into their connectors. Each is a 2-row bundle of individually
   // sleeved wires (pins x 2), held by cable combs, ending in a moulded plug.
   //   w = width axis of the bundle (direction the pin row runs)
@@ -121,12 +122,13 @@ const CONFIG = {
       pts: [[-1.2, 1.92, -0.9], [-1.2, 1.92, -0.5], [-1.19, 1.9, -0.22], [-1.18, 1.78, -0.16], [-1.18, 1.66, -0.3], [-1.18, 1.645, -0.46]],
       pins: 4, rows: 2, w: [1, 0, 0], plugDepth: 0.13, grommet: [-1.2, 1.9, -0.78, 0.3, 0.14],
     },
-    { // GPU 8-pin #1: lower right grommet → connectors on the card's outer edge (face z 0.73)
-      pts: [[1.42, -0.5, -0.9], [1.41, -0.5, -0.45], [1.28, -0.42, 0.25], [0.9, -0.22, 0.78], [0.35, -0.03, 0.95], [-0.02, 0.0, 0.92], [-0.08, 0.0, 0.74]],
+    { // GPU 8-pin #1: lower right grommet → power block on the card's outer edge
+      // (block measured at world x -0.49..-0.23, y -0.21..0.0, face z 0.73)
+      pts: [[1.42, -0.5, -0.9], [1.41, -0.5, -0.45], [1.26, -0.44, 0.3], [0.8, -0.28, 0.9], [0.15, -0.14, 1.04], [-0.3, -0.1, 1.0], [-0.265, -0.1, 0.9], [-0.265, -0.1, 0.74]],
       pins: 4, rows: 2, w: [1, 0, 0], plugDepth: 0.13, grommet: [1.42, -0.5, -0.78, 0.16, 0.42],
     },
-    { // GPU 8-pin #2 (sits beside #1)
-      pts: [[1.42, -0.5, -0.9], [1.41, -0.5, -0.45], [1.3, -0.44, 0.2], [0.95, -0.27, 0.74], [0.35, -0.08, 0.98], [-0.22, -0.02, 0.94], [-0.28, 0.0, 0.74]],
+    { // GPU 8-pin #2 (beside #1, toward the rear)
+      pts: [[1.42, -0.5, -0.9], [1.41, -0.5, -0.45], [1.28, -0.46, 0.25], [0.85, -0.32, 0.86], [0.2, -0.2, 1.06], [-0.4, -0.12, 1.02], [-0.455, -0.1, 0.9], [-0.455, -0.1, 0.74]],
       pins: 4, rows: 2, w: [1, 0, 0], plugDepth: 0.13,
     },
     { // PSU modular leads: out of the PSU face, behind the shroud panel
@@ -184,7 +186,7 @@ const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.55;
 
-// lights – cinematic three-point. Layer 1 = "flying" objects rendered through the blur pass.
+// lights - cinematic three-point. Layer 1 = "flying" objects rendered through the blur pass.
 const lights = [];
 const key = new THREE.DirectionalLight(0xffffff, 2.6);
 key.position.set(4, 6, 6);
@@ -290,11 +292,11 @@ function loadNormalised(file, size, rot, fallbackDims, order = 'XYZ') {
 }
 
 /* ------------------------------------------------------------------------ */
-/*  Cables – sleeved ribbons (N parallel strands) revealed along their length */
+/*  Cables - sleeved ribbons (N parallel strands) revealed along their length */
 /* ------------------------------------------------------------------------ */
 
 const cableMat = new THREE.MeshStandardMaterial({ color: 0xbdbdc2, roughness: 0.95, metalness: 0.0 });
-const plugMat = new THREE.MeshStandardMaterial({ color: 0x111113, roughness: 0.55, metalness: 0.15 });
+const plugMat = new THREE.MeshStandardMaterial({ color: 0x1c1c20, roughness: 0.5, metalness: 0.15 });
 const rubberMat = new THREE.MeshStandardMaterial({ color: 0x0c0c0e, roughness: 0.95, metalness: 0.0 });
 
 const PITCH = 0.042;          // wire pitch (4.2 mm on a 10.5 cm = 1 unit scale)
@@ -401,7 +403,7 @@ function makeCable(def) {
 }
 
 /* ------------------------------------------------------------------------ */
-/*  Blur pass – "flying" parts are rendered to an offscreen target,          */
+/*  Blur pass - "flying" parts are rendered to an offscreen target,          */
 /*  gaussian-blurred and composited back. Amount = holder.userData.blur.     */
 /* ------------------------------------------------------------------------ */
 
@@ -491,11 +493,100 @@ const blur = (() => {
     compMat.uniforms.tDiffuse.value = src.texture;
     renderer.render(quadScene, quadCam);
   }
+  return { render, resize, quadScene, quadCam, quad, mk };
+})();
+
+/* ------------------------------------------------------------------------ */
+/*  Outline pass - hovered / just-seated parts get an orange border drawn    */
+/*  around their silhouette: mask (layer 2) -> box dilate r -> dilate r+w,   */
+/*  ring = D2 - D1. The first dilation also fills the scan meshes' pinholes. */
+/* ------------------------------------------------------------------------ */
+
+const outline = (() => {
+  const scale = 0.5;
+  const mkRT = () => new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false, stencilBuffer: false });
+  const rtMask = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: true, stencilBuffer: false });
+  const rtT = mkRT(), rtD1 = mkRT(), rtD2 = mkRT();
+  const vs = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
+
+  const dilateMat = new THREE.ShaderMaterial({
+    uniforms: { tDiffuse: { value: null }, dir: { value: new THREE.Vector2() }, radius: { value: 3 } },
+    vertexShader: vs,
+    fragmentShader: `
+      uniform sampler2D tDiffuse; uniform vec2 dir; uniform float radius; varying vec2 vUv;
+      void main(){
+        float m = 0.0;
+        for (float i = -12.0; i <= 12.0; i += 1.0) {
+          if (abs(i) > radius) continue;
+          m = max(m, texture2D(tDiffuse, vUv + dir * i).r);
+        }
+        gl_FragColor = vec4(m, 0.0, 0.0, 1.0);
+      }`,
+    depthTest: false, depthWrite: false, toneMapped: false,
+  });
+
+  const ringMat = new THREE.ShaderMaterial({
+    uniforms: { tInner: { value: null }, tOuter: { value: null }, color: { value: new THREE.Color(ACCENT) } },
+    vertexShader: vs,
+    fragmentShader: `
+      uniform sampler2D tInner; uniform sampler2D tOuter; uniform vec3 color; varying vec2 vUv;
+      void main(){
+        float a = clamp(texture2D(tOuter, vUv).r - texture2D(tInner, vUv).r, 0.0, 1.0);
+        if (a < 0.003) discard;
+        gl_FragColor = vec4(color * a, a);
+      }`,
+    transparent: true, depthTest: false, depthWrite: false, toneMapped: false,
+    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+  });
+
+  const size = new THREE.Vector2();
+  function resize() {
+    renderer.getDrawingBufferSize(size);
+    const w = Math.max(1, Math.floor(size.x * scale)), h = Math.max(1, Math.floor(size.y * scale));
+    [rtMask, rtT, rtD1, rtD2].forEach((rt) => rt.setSize(w, h));
+  }
+  resize();
+
+  function dilate(src, dst, radius) {
+    blur.quad.material = dilateMat;
+    dilateMat.uniforms.radius.value = radius;
+    dilateMat.uniforms.tDiffuse.value = src.texture;
+    dilateMat.uniforms.dir.value.set(1 / rtMask.width, 0);
+    renderer.setRenderTarget(rtT); renderer.render(blur.quadScene, blur.quadCam);
+    dilateMat.uniforms.tDiffuse.value = rtT.texture;
+    dilateMat.uniforms.dir.value.set(0, 1 / rtMask.height);
+    renderer.setRenderTarget(dst); renderer.render(blur.quadScene, blur.quadCam);
+  }
+
+  /** draw the ring for every mask mesh on layer 2 (their material brightness = opacity) */
+  function render() {
+    const prevLayers = camera.layers.mask;
+    const prevTM = renderer.toneMapping;
+    renderer.toneMapping = THREE.NoToneMapping;
+    camera.layers.set(2);
+    renderer.setRenderTarget(rtMask);
+    renderer.setClearColor(0x000000, 1);
+    renderer.clear(true, true, false);
+    renderer.render(scene, camera);
+    camera.layers.mask = prevLayers;
+
+    const gap = 3;   // px (half res) between the part and its border
+    const width = 2; // border thickness
+    dilate(rtMask, rtD1, gap);
+    dilate(rtD1, rtD2, width);
+
+    renderer.setRenderTarget(null);
+    blur.quad.material = ringMat;
+    ringMat.uniforms.tInner.value = rtD1.texture;
+    ringMat.uniforms.tOuter.value = rtD2.texture;
+    renderer.render(blur.quadScene, blur.quadCam);
+    renderer.toneMapping = prevTM;
+  }
   return { render, resize };
 })();
 
 function setLayer(obj, layer) {
-  obj.traverse((o) => o.layers.set(layer));
+  obj.traverse((o) => { if (!o.userData.mask) o.layers.set(layer); });
 }
 
 /* ------------------------------------------------------------------------ */
@@ -503,6 +594,11 @@ function setLayer(obj, layer) {
 /* ------------------------------------------------------------------------ */
 
 const parts = [];      // { def, holders:[{holder, inst}] }
+
+// hover / seat highlight = an orange border around the part's silhouette; each part owns a
+// flat "mask" copy of its meshes on layer 2 whose brightness drives the border opacity
+const noRaycast = () => {};
+
 const cables = CONFIG.cables.map(makeCable);
 cables.forEach((c) => idle.add(c.group));
 
@@ -558,17 +654,25 @@ async function build() {
       const src = i === 0 ? pivot : pivot.clone(true);
       const holder = new THREE.Group();
       holder.add(src);
-      // own material copies so hover glow is per part
-      const mats = [];
-      src.traverse((o) => {
-        if (o.isMesh && o.material) {
-          o.material = o.material.clone();
-          o.material.emissive = new THREE.Color(ACCENT);
-          o.material.emissiveIntensity = 0;
-          mats.push(o.material);
-        }
+      // one mask material per part so the border fades independently
+      const maskMat = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide, toneMapped: false });
+      const outlines = [];
+      const meshes = [];
+      src.traverse((o) => { if (o.isMesh && o.material) meshes.push(o); });
+      meshes.forEach((o) => {
+        const m = new THREE.Mesh(o.geometry, maskMat);
+        m.position.copy(o.position); m.rotation.copy(o.rotation); m.scale.copy(o.scale);
+        m.castShadow = false; m.receiveShadow = false;
+        m.raycast = noRaycast;
+        m.visible = false;
+        m.userData.mask = true;
+        m.layers.set(2);
+        o.parent.add(m);
+        outlines.push(m);
       });
-      holder.userData.mats = mats;
+      holder.userData.outline = maskMat;
+      holder.userData.outlines = outlines;
+      holder.userData.mats = true;  // marks the holder as a pickable part
       holder.userData.id = def.id;
       holder.userData.glow = 0;     // hover (smoothed)
       holder.userData.flash = 0;    // seat click (timeline)
@@ -634,7 +738,7 @@ function buildTimeline() {
     },
   });
 
-  // copy blocks – word-by-word headline reveal, eyebrow rule draws, paragraph rises
+  // copy blocks - word-by-word headline reveal, eyebrow rule draws, paragraph rises
   stepEls.forEach((el, i) => {
     const base = i * STEP;
     const words = el.querySelectorAll('.w > span');
@@ -774,16 +878,20 @@ function frame() {
     controls.update();
   }
 
-  // hover glow / seat flash → emissive
+  // hover / seat flash → border opacity (mask brightness)
+  let anyOutline = false;
   for (const { holders } of parts) {
     for (const { holder } of holders) {
       const u = holder.userData;
-      u.glow += ((holder === hovered ? 1 : 0) - u.glow) * 0.12;
-      const k = Math.max(u.glow * 0.42, u.flash * 0.9);
+      u.glow += ((holder === hovered ? 1 : 0) - u.glow) * 0.14;
+      const k = Math.min(1, Math.max(u.glow, u.flash));
       if (Math.abs(k - (u.lastK || 0)) > 0.002) {
         u.lastK = k;
-        for (const m of u.mats) m.emissiveIntensity = k;
+        u.outline.color.setScalar(k);
+        const show = k > 0.02;
+        for (const h of u.outlines) h.visible = show;
       }
+      if ((u.lastK || 0) > 0.02 && holder.visible) anyOutline = true;
     }
   }
 
@@ -810,6 +918,7 @@ function frame() {
   camera.layers.set(0);
   renderer.render(scene, camera);
   if (blurAmount > 0) blur.render(blurAmount, blurPx);
+  if (anyOutline) outline.render();
 
   requestAnimationFrame(frame);
 }
@@ -818,6 +927,7 @@ function onResize() {
   layout();
   renderer.setSize(window.innerWidth, window.innerHeight, false);
   blur.resize();
+  outline.resize();
 }
 window.addEventListener('resize', onResize);
 

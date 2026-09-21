@@ -29,7 +29,12 @@ const CONFIG = {
   // 30 / 20 / 50 layout: copy left, white spawn column in the middle (screen centre at 40%),
   // PC centred in the right 50% (NDC x = 0.5). spawnDist = distance from the camera where parts
   // appear; spawnFit = the size (units) every part is presented at in the column.
-  layout: { split: 0.44, minAspect: 1.15, spawnDist: 12.8, spawnFit: 2.1, spawnNdcX: -0.2 },
+  // minAspect: below this we stack copy on top and park the PC in the lower half (phones / portrait).
+  layout: {
+    split: 0.44, minAspect: 1.15, spawnDist: 12.8, spawnFit: 2.1, spawnNdcX: -0.2,
+    // camera offsets when stacked: lift + pull back so the case sits under the headline
+    narrowCamY: 2.15, narrowCamZ: 5.6, narrowTgtY: -1.25, narrowSpawnY: -0.22, narrowFov: 8,
+  },
   rig: { rotY: -0.48, mouseYaw: 0.13, mousePitch: 0.05 },   // 3/4 view + cursor parallax
 
   // case.glb → normalised 4.25 x 4.4 x 2.18. Open (glass) side +Z, front +X.
@@ -135,13 +140,35 @@ const finale = {
   spin: 0,        // accumulated spin angle (rad)
 };
 
-/** place the PC in the right half of the viewport on wide screens (blended to centre at the end) */
+/** place the PC in the right half on wide screens; on phones, park it in the lower half under the copy */
+function isNarrow() {
+  return window.innerWidth / window.innerHeight < CONFIG.layout.minAspect;
+}
+
 function layout() {
   const aspect = window.innerWidth / window.innerHeight;
-  const halfW = Math.tan(THREE.MathUtils.degToRad(CONFIG.camera.fov / 2)) * CONFIG.camera.pos[2] * aspect;
-  const shift = (aspect >= CONFIG.layout.minAspect ? halfW * CONFIG.layout.split : 0) * (1 - finale.center);
-  camera.position.x = CONFIG.camera.pos[0] - shift;
-  camTarget.x = CONFIG.camera.target[0] - shift;
+  const narrow = isNarrow();
+  document.documentElement.classList.toggle('is-narrow', narrow);
+
+  // keep some of the narrow framing even at the finale so the case still fits on a phone;
+  // ease the vertical offset harder so the Ready shot centres the PC above the CTA
+  const stack = narrow ? (1 - finale.center * 0.35) : 0;
+  const stackY = narrow ? (1 - finale.center * 0.92) : 0;
+  const camZ = CONFIG.camera.pos[2] + CONFIG.layout.narrowCamZ * stack;
+  const halfW = Math.tan(THREE.MathUtils.degToRad(CONFIG.camera.fov / 2)) * camZ * aspect;
+  const shift = (!narrow ? halfW * CONFIG.layout.split : 0) * (1 - finale.center);
+
+  camera.position.set(
+    CONFIG.camera.pos[0] - shift,
+    CONFIG.camera.pos[1] + CONFIG.layout.narrowCamY * stackY,
+    camZ,
+  );
+  camTarget.set(
+    CONFIG.camera.target[0] - shift,
+    CONFIG.camera.target[1] + CONFIG.layout.narrowTgtY * stackY,
+    CONFIG.camera.target[2],
+  );
+  camera.fov = CONFIG.camera.fov + CONFIG.layout.narrowFov * stack;
   camera.aspect = aspect;
   camera.updateProjectionMatrix();
 }
@@ -359,7 +386,10 @@ async function build() {
   camera.updateMatrixWorld(true);
   scene.updateMatrixWorld(true);
   const spawnLocal = (ndcX, ndcY) => {
-    spawn.set(ndcX, ndcY, 0.5).unproject(camera);
+    // phones have no orange column — spawn centred, a touch below mid so parts clear the headline
+    const x = isNarrow() ? 0 : ndcX;
+    const y = isNarrow() ? CONFIG.layout.narrowSpawnY : ndcY;
+    spawn.set(x, y, 0.5).unproject(camera);
     spawn.sub(camera.position).normalize().multiplyScalar(CONFIG.layout.spawnDist).add(camera.position);
     return idle.worldToLocal(spawn).toArray();
   };
@@ -528,8 +558,12 @@ function frame() {
     rig.rotation.x = mouseSmooth.y * CONFIG.rig.mousePitch * (1 - f);
     if (finale.center !== lastCenter) { layout(); lastCenter = finale.center; }
     camera.lookAt(camTarget);
-    // copy drifts the opposite way to the PC for depth
-    copyEl.style.transform = `translate3d(${mouseSmooth.x * -10}px, ${mouseSmooth.y * -6}px, 0)`;
+    // copy drifts the opposite way to the PC for depth (desktop only — phones keep copy pinned)
+    if (!isNarrow()) {
+      copyEl.style.transform = `translate3d(${mouseSmooth.x * -10}px, ${mouseSmooth.y * -6}px, 0)`;
+    } else {
+      copyEl.style.transform = '';
+    }
   } else {
     controls.update();
   }

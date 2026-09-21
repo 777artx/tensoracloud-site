@@ -159,15 +159,10 @@ const column = (() => {
     const t = finale.dissolve;
     if (t <= 0) { if (drawn !== 0) { ctx.fillStyle = '#f5841f'; ctx.fillRect(0, 0, W, H); drawn = 0; } return; }
     if (t >= 1) { if (drawn !== 1) { ctx.clearRect(0, 0, W, H); drawn = 1; } return; }
-    // grains vanish in random order; a little flicker on the ones about to go
-    const edge = 0.08;
+    // grains vanish in a fixed random order (no per-frame flicker); redraw only when t moves
+    if (t === drawn) return;
     for (let i = 0, j = 0; i < N; i++, j += 4) {
-      const n = noise[i];
-      let a;
-      if (n > t + edge) a = 255;
-      else if (n < t - edge * 0.25) a = 0;
-      else a = Math.random() < (n - (t - edge * 0.25)) / (edge * 1.25) ? 255 : 0;
-      px[j] = accent[0]; px[j + 1] = accent[1]; px[j + 2] = accent[2]; px[j + 3] = a;
+      px[j] = accent[0]; px[j + 1] = accent[1]; px[j + 2] = accent[2]; px[j + 3] = noise[i] > t ? 255 : 0;
     }
     ctx.putImageData(img, 0, 0);
     drawn = t;
@@ -387,7 +382,7 @@ async function build() {
 const stepEls = [...document.querySelectorAll('.step')];
 const hint = document.getElementById('hint');
 const launchEl = document.getElementById('launch');
-gsap.set(launchEl, { xPercent: -50, autoAlpha: 0 });
+gsap.set(launchEl, { autoAlpha: 0 });
 const hdrStep = document.getElementById('hdr-step');
 const hdrLabel = document.getElementById('hdr-label');
 const copyEl = document.getElementById('copy');

@@ -229,17 +229,22 @@ a { color: inherit; text-decoration: none; }
 /* ---------------------------------------------------------------- final CTA */
 .launch {
   position: fixed;
-  left: 50%;
+  left: 0;
+  right: 0;
   bottom: 12vh;
+  margin: 0 auto;
+  width: fit-content;
   z-index: 20;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 10px;
   height: 52px;
   padding: 0 28px;
   border-radius: 10px;
-  background: #0a0a0a;
-  color: #fff;
+  background: #fff;
+  color: #000;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.1);
   text-decoration: none;
   font-family: var(--font-display);
   font-feature-settings: "ss02" 1;
@@ -250,7 +255,7 @@ a { color: inherit; text-decoration: none; }
   transition: background 0.25s;
 }
 
-.launch:hover { background: #2a2a2e; }
+.launch:hover { background: #f0f0f0; }
 .launch span { font-size: 14px; transition: transform 0.25s; }
 .launch:hover span { transform: translate(2px, -2px); }
 

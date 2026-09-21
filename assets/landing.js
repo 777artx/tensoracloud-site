@@ -19,8 +19,24 @@ const DEBUG = new URLSearchParams(location.search).has('debug');
 const MB = [-0.52, 0.325, -0.43];
 const onBoard = (x, y, z) => [MB[0] + x, MB[1] + y, MB[2] + z];
 
+const ACCENT = 0xff7a1a;   // keep in sync with --accent in landing.css
+
+// hover labels per part
+const LABELS = {
+  motherboard: ['Motherboard', 'One account'],
+  cpu: ['CPU', 'Models'],
+  ram: ['Memory', 'Tools'],
+  ssd: ['Storage', 'Observability'],
+  gpu: ['GPU', 'Compute'],
+  psu: ['Power supply', 'Payments'],
+};
+const STEP_LABELS = ['Empty case', 'Motherboard', 'CPU', 'Memory', 'Storage', 'GPU', 'Power', 'Cables', 'Ready'];
+
 const CONFIG = {
-  camera: { pos: [0, 0.9, 13.6], target: [0, -0.05, 0], fov: 30 },
+  camera: { pos: [0, 0.9, 13.4], target: [0, -0.05, 0], fov: 30 },
+  // split layout: the PC is framed in the right half (camera + target shift left by
+  // `split` x the visible half-width) on wide screens, centred on narrow ones
+  layout: { split: 0.5, minAspect: 1.15 },
   rig: { rotY: -0.48, mouseYaw: 0.13, mousePitch: 0.05 },   // 3/4 view + cursor parallax
 
   // case.glb → normalised 3.92 x 4.4 x 1.99. Open side +Z, front +X.
@@ -149,6 +165,18 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(CONFIG.camera.fov, window.innerWidth / window.innerHeight, 0.1, 100);
 camera.position.set(...CONFIG.camera.pos);
 const camTarget = new THREE.Vector3(...CONFIG.camera.target);
+
+/** place the PC in the right half of the viewport on wide screens */
+function layout() {
+  const aspect = window.innerWidth / window.innerHeight;
+  const halfW = Math.tan(THREE.MathUtils.degToRad(CONFIG.camera.fov / 2)) * CONFIG.camera.pos[2] * aspect;
+  const shift = aspect >= CONFIG.layout.minAspect ? halfW * CONFIG.layout.split : 0;
+  camera.position.x = CONFIG.camera.pos[0] - shift;
+  camTarget.x = CONFIG.camera.target[0] - shift;
+  camera.aspect = aspect;
+  camera.updateProjectionMatrix();
+}
+layout();
 camera.lookAt(camTarget);
 
 // environment for reflections (no external HDR needed)
@@ -530,6 +558,21 @@ async function build() {
       const src = i === 0 ? pivot : pivot.clone(true);
       const holder = new THREE.Group();
       holder.add(src);
+      // own material copies so hover glow is per part
+      const mats = [];
+      src.traverse((o) => {
+        if (o.isMesh && o.material) {
+          o.material = o.material.clone();
+          o.material.emissive = new THREE.Color(ACCENT);
+          o.material.emissiveIntensity = 0;
+          mats.push(o.material);
+        }
+      });
+      holder.userData.mats = mats;
+      holder.userData.id = def.id;
+      holder.userData.glow = 0;     // hover (smoothed)
+      holder.userData.flash = 0;    // seat click (timeline)
+      holder.userData.seated = false;
       holder.position.set(...inst.from);
       holder.rotation.set(...inst.fromRot);
       holder.scale.setScalar(0.0001);
@@ -553,9 +596,21 @@ const rail = document.getElementById('rail');
 stepEls.forEach(() => rail.appendChild(document.createElement('span')));
 const railDots = [...rail.children];
 const hint = document.getElementById('hint');
+const hdrStep = document.getElementById('hdr-step');
+const hdrLabel = document.getElementById('hdr-label');
+const copyEl = document.getElementById('copy');
+
+// split headlines into words for the staggered reveal
+stepEls.forEach((el) => {
+  const h = el.querySelector('h1, h2');
+  if (!h) return;
+  const words = h.textContent.trim().split(/\s+/);
+  h.innerHTML = words.map((w) => `<span class="w"><span>${w}</span></span>`).join(' ');
+});
 
 function buildTimeline() {
   const STEP = 1;                       // timeline seconds per scroll step
+  let lastStep = -1;
 
   const tl = gsap.timeline({
     defaults: { ease: 'none' },
@@ -566,23 +621,38 @@ function buildTimeline() {
       scrub: 1.4,
       onUpdate: (self) => {
         const i = Math.min(CONFIG.steps - 1, Math.floor(self.progress * CONFIG.steps + 0.35));
-        railDots.forEach((d, k) => d.classList.toggle('active', k === i));
+        railDots.forEach((d, k) => { d.classList.toggle('active', k === i); d.classList.toggle('done', k < i); });
+        rail.style.setProperty('--p', self.progress.toFixed(4));
         hint.classList.toggle('hidden', self.progress > 0.02);
+        if (i !== lastStep) {
+          lastStep = i;
+          hdrStep.textContent = String(i).padStart(2, '0') + ' / ' + String(CONFIG.steps - 1).padStart(2, '0');
+          hdrLabel.textContent = STEP_LABELS[i] || '';
+          gsap.fromTo(hdrLabel, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' });
+        }
       },
     },
   });
 
-  // copy blocks – centred, fade/scale through the middle of each step
+  // copy blocks – word-by-word headline reveal, eyebrow rule draws, paragraph rises
   stepEls.forEach((el, i) => {
     const base = i * STEP;
-    if (i === 0) {
-      gsap.set(el, { autoAlpha: 1, scale: 1 });
-      tl.to(el, { autoAlpha: 0, scale: 0.97, duration: 0.3, ease: 'power2.in' }, base + 0.3);
-      return;
+    const words = el.querySelectorAll('.w > span');
+    const eyebrow = el.querySelector('.eyebrow');
+    const para = el.querySelectorAll('p, .actions');
+    const inAt = i === 0 ? -1 : base + 0.08;       // intro is shown by the loader sequence
+    if (i !== 0) {
+      tl.set(el, { autoAlpha: 1 }, inAt);
+      if (eyebrow) tl.fromTo(eyebrow, { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.25, ease: 'power2.out' }, inAt);
+      tl.fromTo(words, { yPercent: 110, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 0.3, ease: 'power3.out', stagger: 0.035 }, inAt + 0.02);
+      tl.fromTo(para, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out', stagger: 0.06 }, inAt + 0.16);
     }
-    tl.fromTo(el, { autoAlpha: 0, scale: 1.03 }, { autoAlpha: 1, scale: 1, duration: 0.3, ease: 'power2.out' }, base + 0.1);
     if (i !== CONFIG.finalStep) {
-      tl.to(el, { autoAlpha: 0, scale: 0.97, duration: 0.25, ease: 'power2.in' }, base + 0.76);
+      const outAt = base + 0.74;
+      tl.to(words, { yPercent: -110, opacity: 0, duration: 0.22, ease: 'power2.in', stagger: 0.02 }, outAt);
+      tl.to(para, { opacity: 0, y: -16, duration: 0.2, ease: 'power2.in' }, outAt);
+      if (eyebrow) tl.to(eyebrow, { opacity: 0, duration: 0.2 }, outAt);
+      tl.set(el, { autoAlpha: 0 }, outAt + 0.26);
     }
   });
 
@@ -599,8 +669,10 @@ function buildTimeline() {
       // leg 1: glide to the staging point, straightening up
       tl.to(holder.position, { x: via[0], y: via[1], z: via[2], duration: 0.58, ease: 'power2.inOut' }, base + 0.06 + d);
       tl.to(holder.rotation, { x: inst.rotEnd[0], y: inst.rotEnd[1], z: inst.rotEnd[2], duration: 0.5, ease: 'power2.inOut' }, base + 0.08 + d);
-      // leg 2: seat it (the "click")
+      // leg 2: seat it (the "click") + orange flash, then it becomes hoverable
       tl.to(holder.position, { x: inst.pos[0], y: inst.pos[1], z: inst.pos[2], duration: 0.22, ease: 'power3.in' }, base + 0.68 + d);
+      tl.fromTo(holder.userData, { flash: 1 }, { flash: 0, duration: 0.3, ease: 'power2.out' }, base + 0.9 + d);
+      tl.set(holder.userData, { seated: true }, base + 0.9 + d);     // reverts automatically when scrubbing back
     });
   }
 
@@ -634,13 +706,55 @@ if (DEBUG) {
   renderer.domElement.style.position = 'fixed';
 }
 
-// cursor parallax (normalised -1..1)
+// cursor parallax (normalised -1..1) + hover picking
 const mouse = new THREE.Vector2(0, 0);
 const mouseSmooth = new THREE.Vector2(0, 0);
+const pointerPx = { x: -1, y: -1, active: false };
 window.addEventListener('pointermove', (e) => {
   if (e.pointerType && e.pointerType !== 'mouse') return;
   mouse.set((e.clientX / window.innerWidth) * 2 - 1, (e.clientY / window.innerHeight) * 2 - 1);
+  pointerPx.x = e.clientX; pointerPx.y = e.clientY; pointerPx.active = true;
 });
+window.addEventListener('pointerleave', () => { pointerPx.active = false; });
+
+const raycaster = new THREE.Raycaster();
+raycaster.layers.set(0);
+const pickNdc = new THREE.Vector2();
+const tagEl = document.getElementById('tag');
+const tagName = document.getElementById('tag-name');
+const tagRole = document.getElementById('tag-role');
+let hovered = null;
+let pickFrame = 0;
+
+function pick() {
+  // every other frame is plenty
+  if ((pickFrame++ & 1) || !pointerPx.active) return;
+  pickNdc.set(mouse.x, -mouse.y);          // NDC y points up
+  raycaster.setFromCamera(pickNdc, camera);
+  const targets = [];
+  for (const { holders } of parts) for (const { holder } of holders) if (holder.visible && holder.userData.seated) targets.push(holder);
+  const hits = targets.length ? raycaster.intersectObjects(targets, true) : [];
+  let hit = null;
+  if (hits.length) {
+    let o = hits[0].object;
+    while (o && !o.userData.mats) o = o.parent;
+    hit = o;
+  }
+  if (hit !== hovered) {
+    hovered = hit;
+    if (hovered) {
+      const [name, role] = LABELS[hovered.userData.id] || [hovered.userData.id, ''];
+      tagName.textContent = name;
+      tagRole.textContent = role;
+      tagEl.classList.add('on');
+      document.body.style.cursor = 'crosshair';
+    } else {
+      tagEl.classList.remove('on');
+      document.body.style.cursor = '';
+    }
+  }
+  if (hovered) tagEl.style.transform = `translate(${pointerPx.x + 14}px, ${pointerPx.y + 14}px)`;
+}
 
 const clock = new THREE.Clock();
 function frame() {
@@ -653,8 +767,24 @@ function frame() {
     rig.rotation.y = CONFIG.rig.rotY + mouseSmooth.x * CONFIG.rig.mouseYaw;
     rig.rotation.x = mouseSmooth.y * CONFIG.rig.mousePitch;
     camera.lookAt(camTarget);
+    // copy drifts the opposite way to the PC for depth
+    copyEl.style.transform = `translate3d(${mouseSmooth.x * -10}px, ${mouseSmooth.y * -6}px, 0)`;
+    pick();
   } else {
     controls.update();
+  }
+
+  // hover glow / seat flash → emissive
+  for (const { holders } of parts) {
+    for (const { holder } of holders) {
+      const u = holder.userData;
+      u.glow += ((holder === hovered ? 1 : 0) - u.glow) * 0.12;
+      const k = Math.max(u.glow * 0.42, u.flash * 0.9);
+      if (Math.abs(k - (u.lastK || 0)) > 0.002) {
+        u.lastK = k;
+        for (const m of u.mats) m.emissiveIntensity = k;
+      }
+    }
   }
 
   scene.updateMatrixWorld();
@@ -685,8 +815,7 @@ function frame() {
 }
 
 function onResize() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
+  layout();
   renderer.setSize(window.innerWidth, window.innerHeight, false);
   blur.resize();
 }
@@ -710,6 +839,16 @@ build().then(() => {
   loaderPct.textContent = '100%';
   setTimeout(() => loaderEl.classList.add('done'), 250);
   setTimeout(() => ScrollTrigger.refresh(), 400);
+
+  // intro copy reveal (only when at the top; otherwise the timeline owns it)
+  if (!DEBUG && window.scrollY < window.innerHeight * 0.3) {
+    const intro = stepEls[0];
+    gsap.set(intro, { autoAlpha: 1 });
+    gsap.fromTo(intro.querySelectorAll('.w > span'), { yPercent: 110, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 0.9, ease: 'power3.out', stagger: 0.06, delay: 0.55 });
+    gsap.fromTo(intro.querySelectorAll('p'), { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.8, ease: 'power2.out', delay: 1.0 });
+  } else if (!DEBUG) {
+    gsap.set(stepEls[0], { autoAlpha: 1 });
+  }
 
   if (DEBUG) {
     // expose for live tuning in devtools

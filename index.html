@@ -51,13 +51,19 @@
       <a class="header__logo" href="index.html" aria-label="Tensora">
         <img src="images/brand/logo-header-white.png?v=5" alt="Tensora" width="290" height="56" />
       </a>
+      <div class="header__status" aria-hidden="true">
+        <i></i><span id="hdr-label">Empty case</span><b id="hdr-step">00 / 08</b>
+      </div>
       <nav class="header__nav" aria-label="Actions">
         <a href="docs.html">Docs</a>
         <a href="https://x.com/tensoracloud" target="_blank" rel="noopener noreferrer">X</a>
-        <a class="cta" href="https://app.tensoracloud.xyz/lab/home">Launch App</a>
+        <a class="cta" href="https://app.tensoracloud.xyz/lab/home">Launch App <span aria-hidden="true">↗</span></a>
       </nav>
     </div>
   </header>
+
+  <!-- hover label for PC parts -->
+  <div class="tag" id="tag" aria-hidden="true"><i></i><span id="tag-name"></span><em id="tag-role"></em></div>
 
   <!-- 3D stage (fixed) -->
   <div id="stage" aria-hidden="true">
@@ -152,8 +158,11 @@
 
   <!-- footer strip -->
   <div class="foot">
-    <span>© 2026 Tensora Cloud</span>
-    <span>
+    <div class="foot__brand">
+      <img src="images/brand/wordmark-white.png" alt="Tensora" />
+      <span>© 2026 Tensora Cloud</span>
+    </div>
+    <span class="foot__links">
       <a href="legal/terms.html">Terms</a>
       <a href="legal/privacy.html">Privacy</a>
       <a href="legal/cookies.html">Cookies</a>

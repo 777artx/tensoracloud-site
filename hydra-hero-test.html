@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hydra hero anim test</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #000; }
+    #stage { position: fixed; inset: 0; }
+  </style>
+</head>
+<body>
+  <div id="stage"
+    data-us-project="oUvrbeOq0WuFIWyfR7ZD"
+    data-us-dpi="1.5"
+    data-us-scale="1"
+    data-us-fps="60"
+    data-us-production="true"
+    data-us-alttext="HydraDB hero"
+    data-us-arialabel="HydraDB hero animation"></div>
+  <script src="https://cdn.jsdelivr.net/gh/hiunicornstudio/unicornstudio.js@v2.1.11/dist/unicornStudio.umd.js"></script>
+  <script>
+    UnicornStudio.init().then(function () {
+      document.title = "Hydra hero anim test — ready";
+    }).catch(console.error);
+  </script>
+</body>
+</html>

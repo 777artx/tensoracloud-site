@@ -1,0 +1,87 @@
+/*
+ * The Typekit service used to deliver this font or fonts for use on websites
+ * is provided by Adobe and is subject to these Terms of Use
+ * http://www.adobe.com/products/eulas/tou_typekit. For font license
+ * information, see the list below.
+ *
+ * articulat-cf:
+ *   - http://typekit.com/eulas/000000000000000077524f49
+ *   - http://typekit.com/eulas/000000000000000077524f50
+ *   - http://typekit.com/eulas/000000000000000077524f4e
+ *   - http://typekit.com/eulas/000000000000000077524f45
+ *   - http://typekit.com/eulas/000000000000000077524f46
+ *   - http://typekit.com/eulas/000000000000000077524f48
+ *   - http://typekit.com/eulas/000000000000000077524f47
+ *   - http://typekit.com/eulas/000000000000000077524f4d
+ * articulat-heavy-cf:
+ *   - http://typekit.com/eulas/000000000000000077524f4a
+ *   - http://typekit.com/eulas/000000000000000077524f41
+ *
+ * © 2009-2026 Adobe Systems Incorporated. All Rights Reserved.
+ */
+/*{"last_published":"2026-03-04 16:23:05 UTC"}*/
+
+@import url("../p.typekit.net/p_019ca8a6.css");
+
+@font-face {
+font-family:"articulat-cf";
+src:url("font_e1961e20.woff2") format("woff2"),url("font_e1961e20.woff2") format("woff"),url("font_e1961e20.woff2") format("opentype");
+font-display:swap;font-style:normal;font-weight:400;font-stretch:normal;
+}
+
+@font-face {
+font-family:"articulat-cf";
+src:url("font_e003db55.woff2") format("woff2"),url("font_e003db55.woff2") format("woff"),url("font_e003db55.woff2") format("opentype");
+font-display:swap;font-style:normal;font-weight:500;font-stretch:normal;
+}
+
+@font-face {
+font-family:"articulat-cf";
+src:url("font_5bbaa12d.woff2") format("woff2"),url("font_5bbaa12d.woff2") format("woff"),url("font_5bbaa12d.woff2") format("opentype");
+font-display:swap;font-style:normal;font-weight:600;font-stretch:normal;
+}
+
+@font-face {
+font-family:"articulat-cf";
+src:url("font_652f71be.woff2") format("woff2"),url("font_652f71be.woff2") format("woff"),url("font_652f71be.woff2") format("opentype");
+font-display:swap;font-style:normal;font-weight:700;font-stretch:normal;
+}
+
+@font-face {
+font-family:"articulat-cf";
+src:url("font_e2656b17.woff2") format("woff2"),url("font_e2656b17.woff2") format("woff"),url("font_e2656b17.woff2") format("opentype");
+font-display:swap;font-style:italic;font-weight:700;font-stretch:normal;
+}
+
+@font-face {
+font-family:"articulat-cf";
+src:url("font_1f8b46bb.woff2") format("woff2"),url("font_1f8b46bb.woff2") format("woff"),url("font_1f8b46bb.woff2") format("opentype");
+font-display:swap;font-style:italic;font-weight:600;font-stretch:normal;
+}
+
+@font-face {
+font-family:"articulat-cf";
+src:url("font_fdccd016.woff2") format("woff2"),url("font_fdccd016.woff2") format("woff"),url("font_fdccd016.woff2") format("opentype");
+font-display:swap;font-style:italic;font-weight:400;font-stretch:normal;
+}
+
+@font-face {
+font-family:"articulat-cf";
+src:url("font_af99603a.woff2") format("woff2"),url("font_af99603a.woff2") format("woff"),url("font_af99603a.woff2") format("opentype");
+font-display:swap;font-style:italic;font-weight:500;font-stretch:normal;
+}
+
+@font-face {
+font-family:"articulat-heavy-cf";
+src:url("font_c150fe99.woff2") format("woff2"),url("font_c150fe99.woff2") format("woff"),url("font_c150fe99.woff2") format("opentype");
+font-display:swap;font-style:normal;font-weight:900;font-stretch:normal;
+}
+
+@font-face {
+font-family:"articulat-heavy-cf";
+src:url("font_ca718fb1.woff2") format("woff2"),url("font_ca718fb1.woff2") format("woff"),url("font_ca718fb1.woff2") format("opentype");
+font-display:swap;font-style:italic;font-weight:900;font-stretch:normal;
+}
+
+.tk-articulat-cf { font-family: "articulat-cf",sans-serif; }
+.tk-articulat-heavy-cf { font-family: "articulat-heavy-cf",sans-serif; }

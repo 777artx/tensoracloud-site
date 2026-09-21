@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Docs | Tensora</title>
+  <meta name="description" content="Learn how to use models, compare GPU compute, connect tools, fund usage, and track activity through Tensora." />
+  <link rel="stylesheet" href="assets/use.typekit.net/tcb4uyw.css" />
+  <link rel="stylesheet" href="_next/static/chunks/139uxl22pgbkf_0db2327f.css" />
+  <style>
+    :root {
+      --doc-bg: #0a0a0b;
+      --doc-fg: #f4f4f5;
+      --doc-muted: #a1a1aa;
+      --doc-line: rgba(255,255,255,0.1);
+    }
+    body.docs-page {
+      margin: 0;
+      background: var(--doc-bg);
+      color: var(--doc-fg);
+      font-family: "articulat-cf", Inter, ui-sans-serif, system-ui, sans-serif;
+    }
+    .docs-wrap {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 2.5rem 1.25rem 5rem;
+    }
+    .docs-wrap h1 {
+      margin: 0 0 0.5rem;
+      font-size: clamp(1.75rem, 4vw, 2.25rem);
+      font-weight: 600;
+      letter-spacing: -0.03em;
+    }
+    .docs-lead {
+      margin: 0 0 2.5rem;
+      color: var(--doc-muted);
+      font-size: 1.05rem;
+      line-height: 1.55;
+      max-width: 36rem;
+    }
+    .docs-toc {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1rem;
+      margin: 0 0 2.5rem;
+      padding: 0 0 1.5rem;
+      border-bottom: 1px solid var(--doc-line);
+      list-style: none;
+    }
+    .docs-toc a {
+      color: var(--doc-muted);
+      text-decoration: none;
+      font-size: 0.875rem;
+    }
+    .docs-toc a:hover { color: var(--doc-fg); }
+    .docs-section {
+      margin-bottom: 2.75rem;
+      scroll-margin-top: 5rem;
+    }
+    .docs-section h2 {
+      margin: 0 0 0.85rem;
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    .docs-section p {
+      margin: 0 0 0.85rem;
+      color: var(--doc-muted);
+      font-size: 0.975rem;
+      line-height: 1.65;
+    }
+    .docs-section p:last-child { margin-bottom: 0; }
+    .docs-section ol,
+    .docs-section ul {
+      margin: 0.5rem 0 0.85rem;
+      padding-left: 1.25rem;
+      color: var(--doc-muted);
+      font-size: 0.975rem;
+      line-height: 1.65;
+    }
+    .docs-section li { margin-bottom: 0.35rem; }
+    .docs-section code,
+    .docs-section pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.8rem;
+    }
+    .docs-section pre {
+      margin: 1rem 0 0;
+      padding: 1rem 1.1rem;
+      overflow-x: auto;
+      border: 1px solid var(--doc-line);
+      background: #111113;
+      color: #d4d4d8;
+      line-height: 1.55;
+    }
+    .docs-section a {
+      color: var(--doc-fg);
+      text-underline-offset: 3px;
+    }
+    .docs-footer-link {
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--doc-line);
+    }
+    .docs-footer-link a {
+      color: var(--doc-muted);
+      font-size: 0.9rem;
+      text-decoration: none;
+    }
+    .docs-footer-link a:hover { color: var(--doc-fg); }
+  </style>
+</head>
+<body class="docs-page">
+  <header class="sticky top-0 z-50 flex items-center pt-2.5">
+    <div class="container flex items-center gap-1">
+      <div class="relative z-60 flex h-11 flex-1 items-center justify-between bg-[#0a0a0b] border border-white/15 pr-0 pl-6">
+        <div class="relative flex h-full shrink-0 items-center">
+          <a class="inline-flex shrink-0" href="index.html">
+            <img alt="Tensora" class="block h-7 w-auto shrink-0" height="56" width="290" src="images/brand/logo-header-white.png?v=5" />
+          </a>
+        </div>
+      </div>
+      <nav aria-label="Actions" class="hidden items-center gap-1 lg:flex">
+        <a class="inline-flex items-center justify-center h-11 gap-1.5 font-medium tracking-tight transition duration-200 ease-in-out border border-white/20 bg-transparent text-white hover:bg-white/10 px-5 text-sm" href="docs.html"><span aria-hidden="true">📄</span> Docs</a>
+        <a aria-label="X (Twitter)" class="inline-flex items-center justify-center h-11 gap-1.5 font-medium tracking-tight transition duration-200 ease-in-out border border-white/20 bg-transparent text-white hover:bg-white/10 px-5 text-sm" href="https://x.com/tensoracloud" rel="noopener noreferrer" target="_blank">
+          <svg aria-hidden="true" fill="currentColor" height="16" viewBox="0 0 24 24" width="16" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></svg>
+        </a>
+        <a class="inline-flex items-center justify-center h-11 gap-1.5 font-medium tracking-tight transition duration-200 ease-in-out border border-white/20 bg-transparent text-white hover:bg-white/10 px-5 text-sm" href="https://app.tensoracloud.xyz/lab/home">App</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="docs-wrap">
+    <h1>Docs</h1>
+    <p class="docs-lead">Everything you need to use Tensora. Create a key, fund your account, use models, find GPUs, connect tools, and track what your software spends.</p>
+
+    <ul class="docs-toc">
+      <li><a href="#what">What Tensora is</a></li>
+      <li><a href="#key">Get an API key</a></li>
+      <li><a href="#auth">Auth and funding</a></li>
+      <li><a href="#models">Call models</a></li>
+      <li><a href="#compute">Compute and tools</a></li>
+      <li><a href="#ledger">Activity and billing</a></li>
+      <li><a href="#networks">Networks</a></li>
+    </ul>
+
+    <section class="docs-section" id="what">
+      <h2>What Tensora is</h2>
+      <p>Tensora gives AI software one place to access models, GPU compute, APIs, MCPs, and payments.</p>
+      <p>Instead of managing separate providers, accounts, and billing systems, software connects to Tensora and uses what it needs from one account.</p>
+      <p>The Tensora app is where you create API keys, fund usage, and track requests, payments, and infrastructure activity.</p>
+    </section>
+
+    <section class="docs-section" id="key">
+      <h2>Get an API key</h2>
+      <ol>
+        <li>Sign in with Google or a wallet.</li>
+        <li>Open API Access.</li>
+        <li>Create a key for your project and copy the secret once.</li>
+        <li>Send it as a Bearer token with API requests.</li>
+      </ol>
+      <p>One Tensora API key gives your software access to supported services. Your project balance pays for usage.</p>
+    </section>
+
+    <section class="docs-section" id="auth">
+      <h2>Auth and funding</h2>
+      <p>Home, Models, Compute, Tools, and Docs are available without an account. API Access, Activity, Billing, and Dashboard require a signed-in session.</p>
+      <p>Fund your balance with supported stablecoins or other available payment methods. Open Billing to add funds and track spend.</p>
+    </section>
+
+    <section class="docs-section" id="models">
+      <h2>Call models</h2>
+      <p>Use tensora/auto to let Tensora choose a model based on speed, cost, or quality. You can also select a specific model from the catalog.</p>
+      <p>Supported model requests use an OpenAI-compatible chat format.</p>
+      <pre>curl https://api.tensora.cloud/v1/chat/completions \
+  -H "Authorization: Bearer $TENSORA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "tensora/auto",
+    "messages": [{ "role": "user", "content": "Hello" }]
+  }'</pre>
+    </section>
+
+    <section class="docs-section" id="compute">
+      <h2>Compute and tools</h2>
+      <p>Compute lets you compare GPU pricing and availability across infrastructure providers.</p>
+      <p>Offers with direct Tensora support can be purchased through Tensora. Other offers take you directly to the provider.</p>
+      <p>Tools lets you discover and connect supported APIs and MCPs to your project.</p>
+    </section>
+
+    <section class="docs-section" id="ledger">
+      <h2>Activity and billing</h2>
+      <p>Activity shows what your software has done through Tensora, including model requests, compute activity, tool usage, payments, timestamps, and status.</p>
+      <p>Billing shows your balance, deposits, infrastructure spend, and payment activity. Dashboard summarizes usage across your account.</p>
+    </section>
+
+    <section class="docs-section" id="networks">
+      <h2>Networks</h2>
+      <p>Supported stablecoins can be used to fund Tensora usage. When a payment settles onchain, Tensora shows the transaction and explorer link when available.</p>
+    </section>
+
+    <div class="docs-footer-link">
+      <a href="index.html">Back to Tensora</a>
+      &nbsp;·&nbsp;
+      <a href="https://app.tensoracloud.xyz/lab/home">Open Lab</a>
+    </div>
+  </main>
+</body>
+</html>

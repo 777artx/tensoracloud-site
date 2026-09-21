@@ -14,9 +14,12 @@ gsap.registerPlugin(ScrollTrigger);
 
 const DEBUG = new URLSearchParams(location.search).has('debug');
 
-// motherboard placement: back of PCB on the tray stand-offs (tray z = -0.65),
-// rear I/O against the rear wall (x = -1.68), bottom edge just above the shroud.
-const MB = [-0.52, 0.325, -0.43];
+// case.glb = Corsair 4000D Airflow (CC-BY 4.0, kirigami318). Measured in case space after
+// normalisation: tray z = -0.795, rear wall x = -1.95, shroud top y = -0.99 (plate underside
+// -1.008), floor y = -1.727, glass z = 1.08.
+// motherboard placement: back of PCB on the tray stand-offs (tray z = -0.795),
+// rear I/O against the rear wall (x = -1.95), bottom edge just above the shroud.
+const MB = [-0.79, 0.50, -0.575];
 const onBoard = (x, y, z) => [MB[0] + x, MB[1] + y, MB[2] + z];
 
 const STEP_LABELS = ['Empty case', 'Motherboard', 'CPU', 'Memory', 'Storage', 'GPU', 'Power', 'Ready'];
@@ -26,15 +29,16 @@ const CONFIG = {
   // 30 / 20 / 50 layout: copy left, white spawn column in the middle (screen centre at 40%),
   // PC centred in the right 50% (NDC x = 0.5). spawnDist = distance from the camera where parts
   // appear; spawnFit = the size (units) every part is presented at in the column.
-  layout: { split: 0.5, minAspect: 1.15, spawnDist: 12.8, spawnFit: 2.1, spawnNdcX: -0.2 },
+  layout: { split: 0.44, minAspect: 1.15, spawnDist: 12.8, spawnFit: 2.1, spawnNdcX: -0.2 },
   rig: { rotY: -0.48, mouseYaw: 0.13, mousePitch: 0.05 },   // 3/4 view + cursor parallax
 
-  // case.glb → normalised 3.92 x 4.4 x 1.99. Open side +Z, front +X.
+  // case.glb → normalised 4.25 x 4.4 x 2.18. Open (glass) side +Z, front +X.
   case: {
     file: 'models/case.glb', size: 4.4, rot: [0, 0, 0], pos: [0, 0, 0],
-    tint: 0x1a1a1c,                 // albedo multiplier: turns the white scan into a black case
-    // window cut into the PSU shroud front so the PSU bay is visible
-    cut: { min: [-1.62, -1.8, -0.95], max: [-0.25, -1.2, 1.15] },
+    tint: null,                     // the model ships real PBR materials; no albedo override
+    // window cut into the PSU shroud front (shroud face z = 0.70) so the PSU bay is visible.
+    // Stops short of the rear panel (x < -1.85) and the glass (z > 1.03).
+    cut: { min: [-1.84, -1.68, 0.0], max: [-0.5, -1.03, 1.0] },
   },
 
   // step = index of the scroll step that places the part
@@ -86,12 +90,13 @@ const CONFIG = {
     },
     {
       // fan +Y, vent/switch +Z, modular sockets +X → vent -X (rear), sockets +Z (open side)
-      // 1.36 wide x 0.73 tall x 1.5 deep after rotation. Sits on the floor inside the shroud.
-      id: 'psu', step: 6, file: 'models/psu.glb', size: 1.5,
+      // 1.33 wide x 0.715 tall x 1.47 deep after rotation. Sits on the floor (y -1.727) inside
+      // the shroud cavity (underside y -1.008), against the rear wall.
+      id: 'psu', step: 6, file: 'models/psu.glb', size: 1.47,
       rot: [0, -Math.PI / 2, 0],
-      pos: [-1.02, -1.6, -0.04], via: [-1.02, -1.6, 1.9], rotEnd: [0, 0, 0],
+      pos: [-1.2, -1.367, -0.10], via: [-1.2, -1.367, 1.9], rotEnd: [0, 0, 0],
       showRot: [-Math.PI / 2, 0, 0],          // fan side toward the viewer
-      fallback: [1.36, 0.73, 1.5],
+      fallback: [1.33, 0.715, 1.47],
     },
   ],
 
@@ -199,13 +204,13 @@ fill.position.set(-2, -1, 6);
 lights.push(fill);
 
 // lifts the black interior; sits behind the glass so it never glares off the panel
-const inner = new THREE.PointLight(0xffffff, 2.5, 5, 2);
-inner.position.set(0.2, 0.6, 0.0);
+const inner = new THREE.PointLight(0xffffff, 1.8, 5, 2);
+inner.position.set(0.2, 0.6, 0.35);
 lights.push(inner);
 
 const bay = new THREE.SpotLight(0xffffff, 9, 7, 0.5, 0.7, 1.2);   // PSU bay, also inside the glass
-bay.position.set(0.5, -0.5, 0.7);
-bay.target.position.set(-1.0, -1.6, -0.2);
+bay.position.set(0.3, -0.6, 0.9);
+bay.target.position.set(-1.2, -1.37, -0.1);
 scene.add(bay.target);
 lights.push(bay);
 
@@ -294,7 +299,7 @@ const cutPlanesLocal = [];
 const cutPlanesWorld = [];
 
 async function build() {
-  const casePivot = await loadNormalised(CONFIG.case.file, CONFIG.case.size, CONFIG.case.rot, [3.92, 4.4, 1.99]);
+  const casePivot = await loadNormalised(CONFIG.case.file, CONFIG.case.size, CONFIG.case.rot, [4.25, 4.4, 2.18]);
   caseHolder = new THREE.Group();
   caseHolder.position.set(...CONFIG.case.pos);
   caseHolder.add(casePivot);
@@ -308,32 +313,45 @@ async function build() {
     new THREE.Plane(new THREE.Vector3(0, 0, -1), min[2]), new THREE.Plane(new THREE.Vector3(0, 0, 1), -max[2]),
   );
   cutPlanesLocal.forEach(() => cutPlanesWorld.push(new THREE.Plane()));
-  const interiorMat = new THREE.MeshStandardMaterial({ color: 0x0f0f11, roughness: 0.9, metalness: 0.05, side: THREE.BackSide });
-  interiorMat.clippingPlanes = cutPlanesWorld;
-  interiorMat.clipIntersection = true;
+
+  // tempered-glass side panel: smoked, reflective, drawn after everything behind it
+  const glassMat = new THREE.MeshPhysicalMaterial({
+    color: 0x22262c, metalness: 0.0, roughness: 0.04,
+    transparent: true, opacity: 0.24, depthWrite: false, side: THREE.DoubleSide,
+    envMapIntensity: 1.4, clearcoat: 1.0, clearcoatRoughness: 0.03,
+  });
   const caseMeshes = [];
   casePivot.traverse((o) => { if (o.isMesh && o.material) caseMeshes.push(o); });
   caseMeshes.forEach((o) => {
+    const isGlass = o.name === 'GlassPanel' || o.material.name === 'Glass';
+    if (isGlass) {
+      o.material = glassMat;
+      o.castShadow = false;
+      o.receiveShadow = false;
+      o.renderOrder = 10;
+      return;
+    }
     o.material = o.material.clone();
-    o.material.color.set(CONFIG.case.tint);          // black case (the scan is white; tint the albedo)
-    o.material.clippingPlanes = cutPlanesWorld;
-    o.material.clipIntersection = true;
-    // dark inner shell so the cut window reveals a black cavity, not the mirrored exterior
-    const shell = new THREE.Mesh(o.geometry, interiorMat);
-    shell.castShadow = false;
-    shell.receiveShadow = true;
-    o.parent.add(shell);
-    shell.position.copy(o.position); shell.rotation.copy(o.rotation); shell.scale.copy(o.scale);
+    if (CONFIG.case.tint != null) o.material.color.set(CONFIG.case.tint);
+    // thin sheet-metal plates: render both faces so the cut window shows the inside of the bay
+    o.material.side = THREE.DoubleSide;
+    o.material.envMapIntensity = 1.0;
+    // the shroud window: skip the glass frame so the cut never opens a hole in the panel
+    if (o.name !== 'GlassFrame' && o.material.name !== 'GlassFrame') {
+      o.material.clippingPlanes = cutPlanesWorld;
+      o.material.clipIntersection = true;
+    }
   });
 
-  // PSU bay liner: a dark box seen from inside so the window shows a clean cavity
-  const liner = new THREE.Mesh(
-    new THREE.BoxGeometry(1.64, 0.8, 1.62),
-    new THREE.MeshStandardMaterial({ color: 0x0b0b0d, roughness: 0.95, metalness: 0.0, side: THREE.BackSide }),
+  // the rear panel has a real PSU opening; a dark plate behind the bay keeps the page
+  // background from showing through the shroud window before the PSU arrives
+  const bayPlate = new THREE.Mesh(
+    new THREE.BoxGeometry(0.02, 0.78, 2.0),
+    new THREE.MeshStandardMaterial({ color: 0x0a0a0c, roughness: 0.9, metalness: 0.05 }),
   );
-  liner.position.set(-1.0, -1.51, -0.1);
-  liner.receiveShadow = true;
-  caseHolder.add(liner);
+  bayPlate.position.set(-1.88, -1.37, -0.1);
+  bayPlate.receiveShadow = true;
+  caseHolder.add(bayPlate);
 
   // every part first appears in the white centre column: sharp, centred, facing the camera
   // straight on, then glides to its slot. Computed from the camera so it tracks the layout.

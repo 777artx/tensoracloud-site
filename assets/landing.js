@@ -208,13 +208,14 @@ const fill = new THREE.DirectionalLight(0xffffff, 1.1);
 fill.position.set(-2, -1, 6);
 lights.push(fill);
 
-const inner = new THREE.PointLight(0xffffff, 12, 7, 2);   // lifts the black interior
-inner.position.set(0.2, 0.6, 1.4);
+// lifts the black interior; sits behind the glass so it never glares off the panel
+const inner = new THREE.PointLight(0xffffff, 7, 6, 2);
+inner.position.set(0.2, 0.6, 0.35);
 lights.push(inner);
 
-const bay = new THREE.SpotLight(0xffffff, 10, 9, 0.32, 0.6, 1.2);   // PSU bay
-bay.position.set(0.6, -0.4, 3.2);
-bay.target.position.set(-1.0, -1.6, 0);
+const bay = new THREE.SpotLight(0xffffff, 9, 7, 0.5, 0.7, 1.2);   // PSU bay, also inside the glass
+bay.position.set(0.5, -0.5, 0.7);
+bay.target.position.set(-1.0, -1.6, -0.2);
 scene.add(bay.target);
 lights.push(bay);
 

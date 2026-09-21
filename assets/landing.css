@@ -52,8 +52,9 @@ a { color: inherit; text-decoration: none; }
   display: block;
 }
 
-/* mostly-black "old CCTV" background: coarse interference static behind the PC,
-   scanlines + a slow rolling band, and a fine animated film grain over everything */
+/* mostly-black background with old-TV "snow": sparse white pixels that flicker.
+   Two thresholded-noise layers (2px and 3px blocks, different seeds/timings) behind
+   the PC, plus a very fine film grain over everything. */
 .texture {
   position: absolute;
   inset: 0;
@@ -62,57 +63,45 @@ a { color: inherit; text-decoration: none; }
   overflow: hidden;
 }
 
-.texture::before {
-  /* coarse static (the jammed-signal look), jitters every few frames */
+.texture::before,
+.texture::after {
   content: "";
   position: absolute;
   inset: -100%;
   width: 300%;
   height: 300%;
-  opacity: 0.2;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='s' x='0' y='0'><feTurbulence type='fractalNoise' baseFrequency='0.9 0.35' numOctaves='2' seed='3' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/><feComponentTransfer><feFuncR type='gamma' amplitude='1' exponent='2.4'/><feFuncG type='gamma' amplitude='1' exponent='2.4'/><feFuncB type='gamma' amplitude='1' exponent='2.4'/></feComponentTransfer></filter><rect width='100%' height='100%' filter='url(%23s)'/></svg>");
-  background-size: 220px 220px;
-  animation: static 0.5s steps(4) infinite;
+  image-rendering: pixelated;
+}
+
+.texture::before {
+  /* 2px snow: only the brightest ~12% of noise pixels survive the threshold */
+  opacity: 0.55;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='s' x='0' y='0'><feTurbulence type='fractalNoise' baseFrequency='1.9' numOctaves='1' seed='7' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/><feComponentTransfer><feFuncR type='discrete' tableValues='0 0 0 0 0 0 0 1'/><feFuncG type='discrete' tableValues='0 0 0 0 0 0 0 1'/><feFuncB type='discrete' tableValues='0 0 0 0 0 0 0 1'/></feComponentTransfer></filter><rect width='100%' height='100%' filter='url(%23s)'/></svg>");
+  background-size: 320px 320px;
+  animation: snow 0.42s steps(6) infinite;
 }
 
 .texture::after {
-  /* horizontal scanlines */
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.42) 0 1px, transparent 1px 3px);
-  opacity: 0.9;
+  /* 3px snow, sparser and dimmer, out of phase with the first layer */
+  opacity: 0.32;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='s' x='0' y='0'><feTurbulence type='fractalNoise' baseFrequency='2.4' numOctaves='1' seed='19' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/><feComponentTransfer><feFuncR type='discrete' tableValues='0 0 0 0 0 0 0 0 0 1'/><feFuncG type='discrete' tableValues='0 0 0 0 0 0 0 0 0 1'/><feFuncB type='discrete' tableValues='0 0 0 0 0 0 0 0 0 1'/></feComponentTransfer></filter><rect width='100%' height='100%' filter='url(%23s)'/></svg>");
+  background-size: 360px 360px;
+  animation: snow 0.55s steps(5) infinite reverse;
 }
 
-.roll {
-  /* the slow bright band that rolls down an old CRT monitor */
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: -30vh;
-  height: 26vh;
-  z-index: 1;
-  pointer-events: none;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.045) 45%, rgba(255, 255, 255, 0.07) 50%, rgba(255, 255, 255, 0.045) 55%, rgba(255, 255, 255, 0) 100%);
-  animation: roll 11s linear infinite;
-}
-
-.grain,
-.grain2 {
+.grain {
   position: absolute;
   inset: -100%;
   width: 300%;
   height: 300%;
   pointer-events: none;
   z-index: 3;
+  opacity: 0.1;
   mix-blend-mode: screen;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n' x='0' y='0'><feTurbulence type='fractalNoise' baseFrequency='1.25' numOctaves='1' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/><feComponentTransfer><feFuncR type='gamma' amplitude='1' exponent='1.8'/><feFuncG type='gamma' amplitude='1' exponent='1.8'/><feFuncB type='gamma' amplitude='1' exponent='1.8'/></feComponentTransfer></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
   background-size: 300px 300px;
   animation: grain 0.9s steps(6) infinite;
 }
-
-.grain { opacity: 0.17; }
-.grain2 { opacity: 0.1; animation-delay: -0.45s; animation-duration: 0.7s; background-size: 180px 180px; }
 
 @keyframes grain {
   0%   { transform: translate(0, 0); }
@@ -123,17 +112,14 @@ a { color: inherit; text-decoration: none; }
   100% { transform: translate(0, 0); }
 }
 
-@keyframes static {
+@keyframes snow {
   0%   { transform: translate(0, 0); }
-  25%  { transform: translate(-7%, 4%) scaleX(1.02); }
-  50%  { transform: translate(5%, -6%); }
-  75%  { transform: translate(-3%, -8%) scaleX(0.98); }
+  17%  { transform: translate(-9%, 5%); }
+  34%  { transform: translate(6%, -11%); }
+  51%  { transform: translate(-13%, -4%); }
+  68%  { transform: translate(10%, 9%); }
+  85%  { transform: translate(-4%, 13%); }
   100% { transform: translate(0, 0); }
-}
-
-@keyframes roll {
-  0%   { transform: translateY(0); }
-  100% { transform: translateY(160vh); }
 }
 
 /* ---------------------------------------------------------------- header */
@@ -280,24 +266,13 @@ a { color: inherit; text-decoration: none; }
 }
 
 .step .eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 14px;
+  display: block;
   margin: 0 0 26px;
   font-family: var(--font-mono);
   font-size: 12px;
   letter-spacing: 0.24em;
   text-transform: uppercase;
   color: var(--accent);
-}
-
-.step .eyebrow::before {
-  content: "";
-  display: block;
-  width: 34px;
-  height: 1px;
-  background: var(--accent);
-  transform-origin: left;
 }
 
 .step .actions {

@@ -102,20 +102,21 @@ const CONFIG = {
   //   the last point is the connector face; the plug body sits on it.
   cablesStep: 7,
   cables: [
-    { // 24-pin ATX: right grommet → 24-pin header on the board's right edge (top z -0.447).
-      // Short, tidy run: out of the header toward the glass, one bend, straight into the grommet.
-      pts: [[1.42, 0.42, -0.9], [1.42, 0.44, -0.62], [1.3, 0.5, -0.3], [1.0, 0.545, -0.12], [0.72, 0.545, -0.16], [0.59, 0.545, -0.3], [0.59, 0.545, -0.44]],
-      pins: 12, rows: 2, w: [0, 1, 0], plugDepth: 0.14, grommet: [1.42, 0.42, -0.78, 0.16, 0.42],
+    { // 24-pin ATX: right grommet → 24-pin header on the board's right edge (face z -0.44).
+      // Leaves the header straight out, one easy bend (around the pin-row axis) and a flat
+      // band straight into the grommet, hugging the tray.
+      pts: [[1.42, 0.42, -0.9], [1.4, 0.44, -0.6], [1.2, 0.5, -0.3], [0.85, 0.545, -0.24], [0.66, 0.545, -0.28], [0.59, 0.545, -0.36], [0.59, 0.545, -0.44]],
+      pins: 12, rows: 2, w: [0, 1, 0], plugDepth: 0.14, grommet: [1.42, 0.42, -0.78, 0.16, 0.42], combs: [0.35],
     },
     { // CPU 8-pin EPS: top tray cutout → straight down into the EPS header (top z -0.47)
       pts: [[-1.2, 1.92, -0.9], [-1.2, 1.93, -0.55], [-1.19, 1.9, -0.26], [-1.18, 1.8, -0.2], [-1.18, 1.7, -0.3], [-1.18, 1.645, -0.46]],
-      pins: 4, rows: 2, w: [1, 0, 0], plugDepth: 0.13, grommet: [-1.2, 1.9, -0.78, 0.3, 0.14],
+      pins: 4, rows: 2, w: [1, 0, 0], plugDepth: 0.13, grommet: [-1.2, 1.9, -0.78, 0.3, 0.14], combs: [],
     },
-    { // GPU: a single 8-pin. The card's power block is 0.26 wide = one connector, not two.
-      // Lower right grommet → level along the top of the card, inside the glass (z <= 0.9),
-      // then drops into the block (world x -0.49..-0.23, y -0.21..0.0, face z 0.73).
-      pts: [[1.42, -0.5, -0.9], [1.42, -0.5, -0.5], [1.32, -0.42, 0.15], [1.0, -0.26, 0.66], [0.45, -0.13, 0.88], [-0.15, -0.1, 0.9], [-0.36, -0.1, 0.86], [-0.36, -0.1, 0.74]],
-      pins: 4, rows: 2, w: [1, 0, 0], plugDepth: 0.13, grommet: [1.42, -0.5, -0.78, 0.16, 0.42],
+    { // GPU: one 8-pin on the card's top edge (card top y 0.03, x -1.79..0.82, z -0.49..0.74),
+      // near the PCB side of the cooler. Comes out of a grommet level with the card, runs flat
+      // above the card and arcs down into the connector.
+      pts: [[1.42, 0.08, -0.9], [1.4, 0.12, -0.62], [1.22, 0.26, -0.42], [0.85, 0.36, -0.3], [0.45, 0.37, -0.24], [0.2, 0.32, -0.2], [0.1, 0.2, -0.2], [0.1, 0.03, -0.2]],
+      pins: 4, rows: 2, w: [1, 0, 0], plugDepth: 0.13, grommet: [1.42, 0.08, -0.78, 0.16, 0.36], combs: [0.45],
     },
     { // PSU modular leads: two 8-pin stubs out of the PSU face, behind the shroud panel
       pts: [[-1.3, -1.4, 0.72], [-1.2, -1.4, 0.84], [-0.75, -1.42, 0.86], [-0.3, -1.45, 0.78], [-0.05, -1.47, 0.62]],
@@ -299,29 +300,52 @@ function makeCable(def) {
   const group = new THREE.Group();
   const geos = [];
   const rows = def.rows || 2;
+  const plugEnd = def.plugAt === 'start' ? 0 : 1;          // param along the *drawn* curve
 
-  // moving frame along the curve: T = tangent, W = pin-row axis, B = row-stacking axis
+  // Rotation-minimising frame along the curve (parallel transport), seeded at the plug so the
+  // pin row is exactly `w` on the connector and never flips or fans along the run.
+  // T = tangent, W = pin-row axis, B = row-stacking axis.
+  const frames = [];
+  {
+    const order = [];
+    for (let i = 0; i <= samples; i++) order.push(plugEnd === 1 ? samples - i : i);
+    let prevW = null;
+    for (const i of order) {
+      const t = i / samples;
+      const P = base.getPointAt(t);
+      const T = base.getTangentAt(t);
+      const W = (prevW ? prevW.clone() : w.clone()).addScaledVector(T, -(prevW || w).dot(T));
+      if (W.lengthSq() < 1e-6) W.copy(prevW || w);      // degenerate: keep the previous row axis
+      W.normalize();
+      const B = new THREE.Vector3().crossVectors(T, W).normalize();
+      frames[i] = { P, T, W, B };
+      prevW = W;
+    }
+  }
   const T = new THREE.Vector3(), W = new THREE.Vector3(), B = new THREE.Vector3();
   const frameAt = (t, out) => {
-    base.getPointAt(t, out);
-    base.getTangentAt(t, T);
-    W.copy(w).addScaledVector(T, -w.dot(T)).normalize();
-    B.crossVectors(T, W).normalize();
+    const f = frames[Math.round(THREE.MathUtils.clamp(t, 0, 1) * samples)];
+    out.copy(f.P); T.copy(f.T); W.copy(f.W); B.copy(f.B);
   };
 
   // each wire is an offset copy of the base curve (pins along W, rows along B)
-  const p = new THREE.Vector3();
+  class OffsetCurve extends THREE.Curve {
+    constructor(offW, offB) { super(); this.offW = offW; this.offB = offB; }
+    getPoint(t, target = new THREE.Vector3()) {
+      const x = THREE.MathUtils.clamp(t, 0, 1) * samples;
+      const i0 = Math.floor(x), i1 = Math.min(samples, i0 + 1), k = x - i0;
+      const a = frames[i0], b = frames[i1];
+      target.copy(a.P).lerp(b.P, k);
+      target.addScaledVector(a.W, this.offW * (1 - k)).addScaledVector(b.W, this.offW * k);
+      target.addScaledVector(a.B, this.offB * (1 - k)).addScaledVector(b.B, this.offB * k);
+      return target;
+    }
+  }
   for (let r = 0; r < rows; r++) {
     const offB = (r - (rows - 1) / 2) * PITCH;
     for (let s = 0; s < def.pins; s++) {
       const offW = (s - (def.pins - 1) / 2) * PITCH;
-      const spts = [];
-      for (let i = 0; i <= samples; i++) {
-        frameAt(i / samples, p);
-        spts.push(p.clone().addScaledVector(W, offW).addScaledVector(B, offB));
-      }
-      const curve = new THREE.CatmullRomCurve3(spts, false, 'centripetal', 0.5);
-      const geo = new THREE.TubeGeometry(curve, tubular, WIRE_R, radial, false);
+      const geo = new THREE.TubeGeometry(new OffsetCurve(offW, offB), tubular, WIRE_R, radial, false);
       geo.setDrawRange(0, 0);
       geos.push(geo);
       const mesh = new THREE.Mesh(geo, cableMat);
@@ -358,7 +382,6 @@ function makeCable(def) {
   plug.castShadow = true;
   plug.visible = false;
   group.add(plug);
-  const plugEnd = def.plugAt === 'start' ? 0 : 1;          // param along the *drawn* curve
   const placePlug = (t) => {
     orient(plug, t, plugEnd === 0);
     // T now points from the connector into the cable → pull the body back onto the face

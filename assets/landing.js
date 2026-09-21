@@ -19,7 +19,7 @@ const DEBUG = new URLSearchParams(location.search).has('debug');
 const MB = [-0.52, 0.325, -0.43];
 const onBoard = (x, y, z) => [MB[0] + x, MB[1] + y, MB[2] + z];
 
-const STEP_LABELS = ['Empty case', 'Motherboard', 'CPU', 'Memory', 'Storage', 'GPU', 'Power', 'Cables', 'Ready'];
+const STEP_LABELS = ['Empty case', 'Motherboard', 'CPU', 'Memory', 'Storage', 'GPU', 'Power', 'Ready'];
 
 const CONFIG = {
   camera: { pos: [0, 0.9, 13.4], target: [0, -0.05, 0], fov: 30 },
@@ -95,41 +95,8 @@ const CONFIG = {
     },
   ],
 
-  // cables: real routing - they come out of the tray grommets behind the board and
-  // plug straight into their connectors. Each is a 2-row bundle of individually
-  // sleeved wires (pins x 2), held by cable combs, ending in a moulded plug.
-  //   w = width axis of the bundle (direction the pin row runs)
-  //   the last point is the connector face; the plug body sits on it.
-  cablesStep: 7,
-  cables: [
-    { // 24-pin ATX: right grommet → 24-pin header on the board's right edge (face z -0.44).
-      // Leaves the header straight out, one easy bend (around the pin-row axis) and a flat
-      // band straight into the grommet, hugging the tray.
-      pts: [[1.42, 0.42, -0.9], [1.4, 0.44, -0.6], [1.2, 0.5, -0.3], [0.85, 0.545, -0.24], [0.66, 0.545, -0.28], [0.59, 0.545, -0.36], [0.59, 0.545, -0.44]],
-      pins: 12, rows: 2, w: [0, 1, 0], plugDepth: 0.14, grommet: [1.42, 0.42, -0.78, 0.16, 0.42], combs: [0.35],
-    },
-    { // CPU 8-pin EPS: top tray cutout → straight down into the EPS header (top z -0.47)
-      pts: [[-1.2, 1.92, -0.9], [-1.2, 1.93, -0.55], [-1.19, 1.9, -0.26], [-1.18, 1.8, -0.2], [-1.18, 1.7, -0.3], [-1.18, 1.645, -0.46]],
-      pins: 4, rows: 2, w: [1, 0, 0], plugDepth: 0.13, grommet: [-1.2, 1.9, -0.78, 0.3, 0.14], combs: [],
-    },
-    { // GPU: one 8-pin on the card's top edge (card top y 0.03, x -1.79..0.82, z -0.49..0.74),
-      // near the PCB side of the cooler. Comes out of a grommet level with the card, runs flat
-      // above the card and arcs down into the connector.
-      pts: [[1.42, 0.08, -0.9], [1.4, 0.12, -0.62], [1.22, 0.26, -0.42], [0.85, 0.36, -0.3], [0.45, 0.37, -0.24], [0.2, 0.32, -0.2], [0.1, 0.2, -0.2], [0.1, 0.03, -0.2]],
-      pins: 4, rows: 2, w: [1, 0, 0], plugDepth: 0.13, grommet: [1.42, 0.08, -0.78, 0.16, 0.36], combs: [0.45],
-    },
-    { // PSU modular leads: two 8-pin stubs out of the PSU face, behind the shroud panel
-      pts: [[-1.3, -1.4, 0.72], [-1.2, -1.4, 0.84], [-0.75, -1.42, 0.86], [-0.3, -1.45, 0.78], [-0.05, -1.47, 0.62]],
-      pins: 4, rows: 2, w: [0, 1, 0], plugDepth: 0.12, plugAt: 'start', combs: [0.5],
-    },
-    {
-      pts: [[-1.0, -1.62, 0.72], [-0.9, -1.62, 0.84], [-0.5, -1.63, 0.86], [-0.2, -1.65, 0.78], [-0.05, -1.66, 0.62]],
-      pins: 4, rows: 2, w: [0, 1, 0], plugDepth: 0.12, plugAt: 'start', combs: [0.5],
-    },
-  ],
-
-  finalStep: 8,
-  steps: 9,          // 0..8
+  finalStep: 7,
+  steps: 8,          // 0..7
 };
 
 /* ------------------------------------------------------------------------ */
@@ -279,147 +246,12 @@ function loadNormalised(file, size, rot, fallbackDims, order = 'XYZ') {
   });
 }
 
-/* ------------------------------------------------------------------------ */
-/*  Cables - sleeved ribbons (N parallel strands) revealed along their length */
-/* ------------------------------------------------------------------------ */
-
-const cableMat = new THREE.MeshStandardMaterial({ color: 0xbdbdc2, roughness: 0.95, metalness: 0.0 });
-const plugMat = new THREE.MeshStandardMaterial({ color: 0x1c1c20, roughness: 0.5, metalness: 0.15 });
-const rubberMat = new THREE.MeshStandardMaterial({ color: 0x0c0c0e, roughness: 0.95, metalness: 0.0 });
-
-const PITCH = 0.04;           // wire pitch (4.2 mm on a 10.5 cm = 1 unit scale)
-const WIRE_R = 0.019;         // sleeved wires touch their neighbours, so a bundle reads as one ribbon
-
-function makeCable(def) {
-  const pts = def.pts.map((p) => new THREE.Vector3(...p));
-  if (def.reverse) pts.reverse();                 // draw from the far end toward the plug
-  const base = new THREE.CatmullRomCurve3(pts, false, 'centripetal', 0.5);
-  const tubular = 120, radial = 8;
-  const samples = 160;
-  const w = new THREE.Vector3(...def.w);
-  const group = new THREE.Group();
-  const geos = [];
-  const rows = def.rows || 2;
-  const plugEnd = def.plugAt === 'start' ? 0 : 1;          // param along the *drawn* curve
-
-  // Rotation-minimising frame along the curve (parallel transport), seeded at the plug so the
-  // pin row is exactly `w` on the connector and never flips or fans along the run.
-  // T = tangent, W = pin-row axis, B = row-stacking axis.
-  const frames = [];
-  {
-    const order = [];
-    for (let i = 0; i <= samples; i++) order.push(plugEnd === 1 ? samples - i : i);
-    let prevW = null;
-    for (const i of order) {
-      const t = i / samples;
-      const P = base.getPointAt(t);
-      const T = base.getTangentAt(t);
-      const W = (prevW ? prevW.clone() : w.clone()).addScaledVector(T, -(prevW || w).dot(T));
-      if (W.lengthSq() < 1e-6) W.copy(prevW || w);      // degenerate: keep the previous row axis
-      W.normalize();
-      const B = new THREE.Vector3().crossVectors(T, W).normalize();
-      frames[i] = { P, T, W, B };
-      prevW = W;
-    }
-  }
-  const T = new THREE.Vector3(), W = new THREE.Vector3(), B = new THREE.Vector3();
-  const frameAt = (t, out) => {
-    const f = frames[Math.round(THREE.MathUtils.clamp(t, 0, 1) * samples)];
-    out.copy(f.P); T.copy(f.T); W.copy(f.W); B.copy(f.B);
-  };
-
-  // each wire is an offset copy of the base curve (pins along W, rows along B)
-  class OffsetCurve extends THREE.Curve {
-    constructor(offW, offB) { super(); this.offW = offW; this.offB = offB; }
-    getPoint(t, target = new THREE.Vector3()) {
-      const x = THREE.MathUtils.clamp(t, 0, 1) * samples;
-      const i0 = Math.floor(x), i1 = Math.min(samples, i0 + 1), k = x - i0;
-      const a = frames[i0], b = frames[i1];
-      target.copy(a.P).lerp(b.P, k);
-      target.addScaledVector(a.W, this.offW * (1 - k)).addScaledVector(b.W, this.offW * k);
-      target.addScaledVector(a.B, this.offB * (1 - k)).addScaledVector(b.B, this.offB * k);
-      return target;
-    }
-  }
-  for (let r = 0; r < rows; r++) {
-    const offB = (r - (rows - 1) / 2) * PITCH;
-    for (let s = 0; s < def.pins; s++) {
-      const offW = (s - (def.pins - 1) / 2) * PITCH;
-      const geo = new THREE.TubeGeometry(new OffsetCurve(offW, offB), tubular, WIRE_R, radial, false);
-      geo.setDrawRange(0, 0);
-      geos.push(geo);
-      const mesh = new THREE.Mesh(geo, cableMat);
-      mesh.castShadow = true;
-      group.add(mesh);
-    }
-  }
-
-  const bundleW = def.pins * PITCH + 0.02;
-  const bundleH = rows * PITCH + 0.02;
-  const mtx = new THREE.Matrix4();
-  const orient = (obj, t, flip) => {
-    frameAt(t, obj.position);
-    if (flip) { T.negate(); B.negate(); }          // keep the basis right-handed
-    mtx.makeBasis(W, B, T);
-    obj.quaternion.setFromRotationMatrix(mtx);
-  };
-
-  // cable combs holding the bundle together along the visible run
-  const combs = [];
-  const combGeo = new THREE.BoxGeometry(bundleW + 0.014, bundleH + 0.014, 0.03);
-  for (const ct of def.combs || [0.4, 0.62]) {
-    const comb = new THREE.Mesh(combGeo, plugMat);
-    orient(comb, ct, false);
-    comb.visible = false;
-    comb.userData.t = ct;
-    group.add(comb);
-    combs.push(comb);
-  }
-
-  // moulded plug: pins x rows body, its face sits on the connector
-  const plugDepth = def.plugDepth || 0.13;
-  const plug = new THREE.Mesh(new THREE.BoxGeometry(bundleW, bundleH + 0.01, plugDepth), plugMat);
-  plug.castShadow = true;
-  plug.visible = false;
-  group.add(plug);
-  const placePlug = (t) => {
-    orient(plug, t, plugEnd === 0);
-    // T now points from the connector into the cable → pull the body back onto the face
-    plug.position.addScaledVector(T, -plugDepth * 0.5);
-  };
-
-  // rubber grommet where the cable leaves the tray
-  if (def.grommet) {
-    const [gx, gy, gz, gw, gh] = def.grommet;
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.05, 8, 32), rubberMat);
-    ring.scale.set(gw, gh, 1);
-    ring.position.set(gx, gy, gz);
-    group.add(ring);
-    const fillMesh = new THREE.Mesh(new THREE.CircleGeometry(0.5, 32), rubberMat);
-    fillMesh.scale.set(gw, gh, 1);
-    fillMesh.position.set(gx, gy, gz - 0.01);
-    group.add(fillMesh);
-  }
-
-  const state = { t: 0 };
-  const update = () => {
-    const seg = Math.floor(state.t * tubular);
-    geos.forEach((g) => g.setDrawRange(0, seg * radial * 6));
-    plug.visible = state.t > 0.001;
-    placePlug(plugEnd === 0 ? 0 : Math.min(state.t, 1));
-    combs.forEach((c) => { c.visible = state.t >= c.userData.t; });
-  };
-  return { group, state, update };
-}
 
 /* ------------------------------------------------------------------------ */
 /*  Build scene                                                              */
 /* ------------------------------------------------------------------------ */
 
 const parts = [];      // { def, holders:[{holder, inst}] }
-
-const cables = CONFIG.cables.map(makeCable);
-cables.forEach((c) => idle.add(c.group));
 
 let caseHolder;
 const cutPlanesLocal = [];
@@ -512,9 +344,6 @@ async function build() {
 /* ------------------------------------------------------------------------ */
 
 const stepEls = [...document.querySelectorAll('.step')];
-const rail = document.getElementById('rail');
-stepEls.forEach(() => rail.appendChild(document.createElement('span')));
-const railDots = [...rail.children];
 const hint = document.getElementById('hint');
 const hdrStep = document.getElementById('hdr-step');
 const hdrLabel = document.getElementById('hdr-label');
@@ -541,8 +370,6 @@ function buildTimeline() {
       scrub: 1.4,
       onUpdate: (self) => {
         const i = Math.min(CONFIG.steps - 1, Math.floor(self.progress * CONFIG.steps + 0.35));
-        railDots.forEach((d, k) => { d.classList.toggle('active', k === i); d.classList.toggle('done', k < i); });
-        rail.style.setProperty('--p', self.progress.toFixed(4));
         hint.classList.toggle('hidden', self.progress > 0.02);
         if (i !== lastStep) {
           lastStep = i;
@@ -588,12 +415,6 @@ function buildTimeline() {
       tl.to(holder.position, { x: inst.pos[0], y: inst.pos[1], z: inst.pos[2], duration: 0.2, ease: 'power3.in' }, base + 0.7 + d);
     });
   }
-
-  // cables draw in from the grommets to their connectors
-  const cb = CONFIG.cablesStep * STEP;
-  cables.forEach((c, k) => {
-    tl.to(c.state, { t: 1, duration: 0.4, ease: 'power2.inOut', onUpdate: c.update }, cb + 0.06 + k * 0.1);
-  });
 
   // final: a touch more interior light
   const fb = CONFIG.finalStep * STEP;
@@ -694,7 +515,7 @@ build().then(() => {
 
   if (DEBUG) {
     // expose for live tuning in devtools
-    window.__scene = { THREE, scene, camera, rig, idle, parts, cables, CONFIG, caseHolder, controls };
+    window.__scene = { THREE, scene, camera, rig, idle, parts, CONFIG, caseHolder, controls };
     window.__look = (px, py, pz, tx = 0, ty = 0, tz = 0) => {
       camera.position.set(px, py, pz); controls.target.set(tx, ty, tz); controls.update();
     };
@@ -703,6 +524,5 @@ build().then(() => {
       holder.visible = true; holder.scale.setScalar(1);
       holder.position.set(...inst.pos); holder.rotation.set(...inst.rotEnd);
     }));
-    cables.forEach((c) => { c.state.t = 1; c.update(); });
   }
 });

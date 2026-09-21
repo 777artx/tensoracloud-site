@@ -3,7 +3,7 @@
   --fg: #ffffff;
   --muted: rgba(255, 255, 255, 0.62);
   --line: rgba(255, 255, 255, 0.14);
-  --accent: #ff7a1a;                 /* highlight orange - swap here if needed */
+  --accent: #f5841f;                 /* the docs orange */
   --steps: 10;
   --font-display: "articulat-cf", "articulat-cf-fallback", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -88,6 +88,19 @@ a { color: inherit; text-decoration: none; }
   background-size: 360px 360px;
   animation: snow 0.55s steps(5) infinite reverse;
 }
+
+/* 30 / 20 / 50: white copy column, orange spawn column, black PC side.
+   Both sit under the canvas so parts spawn on top of them. */
+.column,
+.column--left {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 0;
+}
+
+.column--left { left: 0; width: 30%; background: #fff; }
+.column { left: 30%; width: 20%; background: var(--accent); }
 
 .grain {
   position: absolute;
@@ -202,7 +215,7 @@ a { color: inherit; text-decoration: none; }
 .header__nav a.cta span { font-size: 12px; transition: transform 0.25s; }
 .header__nav a.cta:hover span { transform: translate(2px, -2px); }
 
-/* ---------------------------------------------------------------- copy (left half) */
+/* ---------------------------------------------------------------- copy (left 30%) */
 .copy {
   position: fixed;
   inset: 0;
@@ -211,22 +224,14 @@ a { color: inherit; text-decoration: none; }
   will-change: transform;
 }
 
+/* one sentence per step; every sentence starts at the same anchor (left gutter, 30% from the top) */
 .step {
   position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  padding: 0 0 0 var(--gutter);
+  left: var(--gutter);
+  top: 30vh;
+  width: calc(30vw - var(--gutter) - 20px);
   opacity: 0;
   visibility: hidden;
-}
-
-.step__box {
-  width: min(50vw - var(--gutter), 760px);
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  text-align: left;
 }
 
 .step h1,
@@ -235,103 +240,19 @@ a { color: inherit; text-decoration: none; }
   font-family: var(--font-display);
   font-feature-settings: "ss02" 1;
   font-weight: 400;
-  line-height: 0.98;
-  letter-spacing: -0.025em;
-  color: #fff;
-  font-size: clamp(2.6rem, 6.6vw, 7.4rem);
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+  color: #0a0a0a;
+  font-size: clamp(2rem, 3.4vw, 4.2rem);
+  text-wrap: balance;
 }
 
-.step[data-step="8"] h2 { font-size: clamp(2.4rem, 5.6vw, 6.2rem); }
-
-/* word-reveal wrappers (added by JS) */
+/* word-reveal wrappers (added by JS): plain rise + fade, no clipping, so glyphs are never cropped */
 .step h1 .w,
-.step h2 .w {
-  display: inline-block;
-  overflow: hidden;
-  vertical-align: bottom;
-  padding-bottom: 0.08em;
-  margin-bottom: -0.08em;
-}
+.step h2 .w { display: inline-block; vertical-align: baseline; }
 
 .step h1 .w > span,
 .step h2 .w > span { display: inline-block; will-change: transform, opacity; }
-
-.step p {
-  margin: 28px 0 0;
-  max-width: 40ch;
-  font-size: clamp(1rem, 1.3vw, 1.5rem);
-  line-height: 1.45;
-  color: rgba(255, 255, 255, 0.72);
-  text-wrap: pretty;
-}
-
-.step .eyebrow {
-  display: block;
-  margin: 0 0 26px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-  color: var(--accent);
-}
-
-.step .actions {
-  margin-top: 36px;
-  display: flex;
-  gap: 10px;
-  pointer-events: auto;
-}
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  height: 48px;
-  padding: 0 24px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  color: #fff;
-  background: transparent;
-  transition: background 0.25s, color 0.25s, border-color 0.25s;
-}
-
-.btn:hover { border-color: #fff; background: rgba(255, 255, 255, 0.06); }
-
-.btn.primary { background: #fff; color: #000; border-color: #fff; }
-
-.btn.primary:hover { background: #e9e9e9; }
-
-/* ---------------------------------------------------------------- part hover label */
-.tag {
-  position: fixed;
-  z-index: 25;
-  left: 0;
-  top: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px 8px 10px;
-  border-radius: 8px;
-  background: rgba(8, 8, 9, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #fff;
-  pointer-events: none;
-  opacity: 0;
-  transform: translate(14px, 14px) scale(0.96);
-  transition: opacity 0.2s, transform 0.2s;
-  white-space: nowrap;
-}
-
-.tag.on { opacity: 1; transform: translate(14px, 14px) scale(1); }
-
-.tag i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
-
-.tag em { font-style: normal; color: rgba(255, 255, 255, 0.5); }
 
 /* ---------------------------------------------------------------- progress rail */
 .rail {
@@ -406,7 +327,7 @@ a { color: inherit; text-decoration: none; }
   display: block;
   width: 1px;
   height: 36px;
-  background: linear-gradient(180deg, rgba(255, 122, 26, 0) 0%, var(--accent) 100%);
+  background: linear-gradient(180deg, rgba(245, 132, 31, 0) 0%, var(--accent) 100%);
   animation: hint 1.8s ease-in-out infinite;
 }
 
@@ -492,7 +413,7 @@ a { color: inherit; text-decoration: none; }
   width: auto;
 }
 
-.foot__brand span { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; color: rgba(255, 255, 255, 0.4); }
+.foot__brand span { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; color: rgba(0, 0, 0, 0.5); }
 
 .foot__links { display: flex; gap: 18px; padding-bottom: 4px; }
 .foot__links a { pointer-events: auto; transition: color 0.2s; }
@@ -501,15 +422,15 @@ a { color: inherit; text-decoration: none; }
 /* ---------------------------------------------------------------- responsive */
 @media (max-width: 960px) {
   .header__status { display: none; }
-  .step { align-items: flex-start; padding: 15vh 24px 0; }
-  .step__box { width: 100%; }
-  .step h1, .step h2 { font-size: clamp(2.2rem, 9vw, 3.6rem); }
-  .step p { font-size: 1.02rem; max-width: 34ch; }
+  .step { left: 24px; top: 14vh; width: calc(100vw - 48px); }
+  .step h1, .step h2 { font-size: clamp(1.8rem, 7vw, 3rem); }
   .hint { left: 50%; }
   .rail { display: none; }
   .foot { padding-left: 24px; }
   .foot__links { display: none; }
-  .tag { display: none; }
+  .column, .column--left { display: none; }
+  .step h1, .step h2 { color: #fff; }
+  .foot__brand span { color: rgba(255, 255, 255, 0.4); }
 }
 
 @media (max-width: 720px) {

@@ -19,24 +19,14 @@ const DEBUG = new URLSearchParams(location.search).has('debug');
 const MB = [-0.52, 0.325, -0.43];
 const onBoard = (x, y, z) => [MB[0] + x, MB[1] + y, MB[2] + z];
 
-const ACCENT = 0xff7a1a;   // keep in sync with --accent in landing.css
-
-// hover labels per part
-const LABELS = {
-  motherboard: ['Motherboard', 'One account'],
-  cpu: ['CPU', 'Models'],
-  ram: ['Memory', 'Tools'],
-  ssd: ['Storage', 'Observability'],
-  gpu: ['GPU', 'Compute'],
-  psu: ['Power supply', 'Payments'],
-};
 const STEP_LABELS = ['Empty case', 'Motherboard', 'CPU', 'Memory', 'Storage', 'GPU', 'Power', 'Cables', 'Ready'];
 
 const CONFIG = {
   camera: { pos: [0, 0.9, 13.4], target: [0, -0.05, 0], fov: 30 },
-  // split layout: the PC is framed in the right half (camera + target shift left by
-  // `split` x the visible half-width) on wide screens, centred on narrow ones
-  layout: { split: 0.5, minAspect: 1.15 },
+  // 30 / 20 / 50 layout: copy left, white spawn column in the middle (screen centre at 40%),
+  // PC centred in the right 50% (NDC x = 0.5). spawnDist = distance from the camera where parts
+  // appear; spawnFit = largest part width (units) that fits the column at that distance.
+  layout: { split: 0.5, minAspect: 1.15, spawnDist: 12.8, spawnFit: 2.25, spawnNdcX: -0.2 },
   rig: { rotY: -0.48, mouseYaw: 0.13, mousePitch: 0.05 },   // 3/4 view + cursor parallax
 
   // case.glb → normalised 3.92 x 4.4 x 1.99. Open side +Z, front +X.
@@ -48,7 +38,7 @@ const CONFIG = {
 
   // step = index of the scroll step that places the part
   // rot   = model-space fix-up (Euler, `order` optional), applied before placement
-  // from  = where the part first appears (alternating left / right of the PC)
+  // showRot = orientation presented head-on in the centre column (default: as mounted)
   // via   = staging point in front of the slot, pos = seated position
   parts: [
     {
@@ -56,7 +46,6 @@ const CONFIG = {
       id: 'motherboard', step: 1, file: 'models/motherboard.glb', size: 2.85,
       rot: [0, 0, 0],
       pos: MB, via: [MB[0], MB[1], 1.35], rotEnd: [0, 0, 0],
-      from: [-4.1, 0.5, 0.8], fromRot: [0.12, 0.7, -0.08],
       fallback: [2.325, 2.85, 0.36],
     },
     {
@@ -64,7 +53,6 @@ const CONFIG = {
       id: 'cpu', step: 2, file: 'models/cpu.glb', size: 0.40,
       rot: [Math.PI / 2, 0, 0],
       pos: onBoard(0.125, 0.52, -0.131), via: onBoard(0.125, 0.52, 0.55), rotEnd: [0, 0, 0],
-      from: [3.9, 1.1, 0.8], fromRot: [0.4, -0.9, 0.3],
       fallback: [0.4, 0.4, 0.037],
     },
     {
@@ -73,8 +61,8 @@ const CONFIG = {
       id: 'ram', step: 3, file: 'models/ram.glb', size: 1.27,
       rot: [Math.PI / 2, 0, Math.PI / 2], order: 'ZYX',
       instances: [
-        { pos: onBoard(0.682, 0.585, 0.075), via: onBoard(0.682, 0.585, 0.75), rotEnd: [0, 0, 0], from: [-4.0, 1.2, 0.9], fromRot: [0.2, 0.6, 0.5] },
-        { pos: onBoard(0.859, 0.585, 0.075), via: onBoard(0.859, 0.585, 0.75), rotEnd: [0, 0, 0], from: [-3.8, 0.6, 1.1], fromRot: [-0.2, 0.9, 0.3] },
+        { pos: onBoard(0.682, 0.585, 0.075), via: onBoard(0.682, 0.585, 0.75), rotEnd: [0, 0, 0] },
+        { pos: onBoard(0.859, 0.585, 0.075), via: onBoard(0.859, 0.585, 0.75), rotEnd: [0, 0, 0] },
       ],
       fallback: [0.05, 1.27, 0.41],
     },
@@ -84,7 +72,6 @@ const CONFIG = {
       id: 'ssd', step: 4, file: 'models/ssd.glb', size: 0.76,
       rot: [Math.PI / 2, 0, 0],
       pos: onBoard(-0.19, -0.64, -0.071), via: onBoard(-0.19, -0.64, 0.6), rotEnd: [0, 0, 0],
-      from: [3.8, -0.5, 0.9], fromRot: [0.5, -0.7, 0.9],
       fallback: [0.76, 0.2, 0.05],
     },
     {
@@ -93,7 +80,7 @@ const CONFIG = {
       id: 'gpu', step: 5, file: 'models/gpu.glb', size: 2.6,
       rot: [Math.PI, 0, 0],
       pos: onBoard(0.04, -0.52, 0.56), via: onBoard(0.04, -0.52, 1.75), rotEnd: [0, 0, 0],
-      from: [-4.3, -0.2, 0.9], fromRot: [-0.35, 0.55, 0.15],
+      showRot: [-Math.PI / 2, 0, 0],          // fans toward the viewer while it is presented
       fallback: [2.6, 0.52, 1.2],
     },
     {
@@ -102,7 +89,7 @@ const CONFIG = {
       id: 'psu', step: 6, file: 'models/psu.glb', size: 1.5,
       rot: [0, -Math.PI / 2, 0],
       pos: [-1.02, -1.6, -0.04], via: [-1.02, -1.6, 1.9], rotEnd: [0, 0, 0],
-      from: [3.9, -1.3, 0.9], fromRot: [0.3, -0.8, 0.15],
+      showRot: [-Math.PI / 2, 0, 0],          // fan side toward the viewer
       fallback: [1.36, 0.73, 1.5],
     },
   ],
@@ -114,21 +101,23 @@ const CONFIG = {
   //   the last point is the connector face; the plug body sits on it.
   cablesStep: 7,
   cables: [
-    { // 24-pin ATX: right grommet → 24-pin header on the board's right edge (top z -0.447)
-      pts: [[1.42, 0.42, -0.9], [1.41, 0.43, -0.55], [1.25, 0.49, -0.2], [0.92, 0.545, -0.06], [0.66, 0.545, -0.14], [0.59, 0.545, -0.3], [0.59, 0.545, -0.44]],
+    { // 24-pin ATX: right grommet → 24-pin header on the board's right edge (top z -0.447).
+      // Short, tidy run: out of the header toward the glass, one bend, straight into the grommet.
+      pts: [[1.42, 0.42, -0.9], [1.42, 0.44, -0.62], [1.3, 0.5, -0.3], [1.0, 0.545, -0.12], [0.72, 0.545, -0.16], [0.59, 0.545, -0.3], [0.59, 0.545, -0.44]],
       pins: 12, rows: 2, w: [0, 1, 0], plugDepth: 0.14, grommet: [1.42, 0.42, -0.78, 0.16, 0.42],
     },
-    { // CPU 8-pin EPS: top-left tray cutout → EPS header (top z -0.47)
-      pts: [[-1.2, 1.92, -0.9], [-1.2, 1.92, -0.5], [-1.19, 1.9, -0.22], [-1.18, 1.78, -0.16], [-1.18, 1.66, -0.3], [-1.18, 1.645, -0.46]],
+    { // CPU 8-pin EPS: top tray cutout → straight down into the EPS header (top z -0.47)
+      pts: [[-1.2, 1.92, -0.9], [-1.2, 1.93, -0.55], [-1.19, 1.9, -0.26], [-1.18, 1.8, -0.2], [-1.18, 1.7, -0.3], [-1.18, 1.645, -0.46]],
       pins: 4, rows: 2, w: [1, 0, 0], plugDepth: 0.13, grommet: [-1.2, 1.9, -0.78, 0.3, 0.14],
     },
     { // GPU 8-pin #1: lower right grommet → power block on the card's outer edge
-      // (block measured at world x -0.49..-0.23, y -0.21..0.0, face z 0.73)
-      pts: [[1.42, -0.5, -0.9], [1.41, -0.5, -0.45], [1.26, -0.44, 0.3], [0.8, -0.28, 0.9], [0.15, -0.14, 1.04], [-0.3, -0.1, 1.0], [-0.265, -0.1, 0.9], [-0.265, -0.1, 0.74]],
+      // (block measured at world x -0.49..-0.23, y -0.21..0.0, face z 0.73). Runs level
+      // along the top of the card, well inside the glass (z <= 0.9), then drops into the plug.
+      pts: [[1.42, -0.5, -0.9], [1.42, -0.5, -0.5], [1.32, -0.42, 0.15], [1.0, -0.26, 0.66], [0.45, -0.13, 0.88], [-0.1, -0.1, 0.9], [-0.265, -0.1, 0.86], [-0.265, -0.1, 0.74]],
       pins: 4, rows: 2, w: [1, 0, 0], plugDepth: 0.13, grommet: [1.42, -0.5, -0.78, 0.16, 0.42],
     },
     { // GPU 8-pin #2 (beside #1, toward the rear)
-      pts: [[1.42, -0.5, -0.9], [1.41, -0.5, -0.45], [1.28, -0.46, 0.25], [0.85, -0.32, 0.86], [0.2, -0.2, 1.06], [-0.4, -0.12, 1.02], [-0.455, -0.1, 0.9], [-0.455, -0.1, 0.74]],
+      pts: [[1.42, -0.5, -0.9], [1.42, -0.5, -0.5], [1.34, -0.44, 0.1], [1.05, -0.3, 0.62], [0.5, -0.16, 0.9], [-0.3, -0.11, 0.92], [-0.455, -0.1, 0.86], [-0.455, -0.1, 0.74]],
       pins: 4, rows: 2, w: [1, 0, 0], plugDepth: 0.13,
     },
     { // PSU modular leads: out of the PSU face, behind the shroud panel
@@ -186,7 +175,7 @@ const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.55;
 
-// lights - cinematic three-point. Layer 1 = "flying" objects rendered through the blur pass.
+// lights - cinematic three-point.
 const lights = [];
 const key = new THREE.DirectionalLight(0xffffff, 2.6);
 key.position.set(4, 6, 6);
@@ -209,8 +198,8 @@ fill.position.set(-2, -1, 6);
 lights.push(fill);
 
 // lifts the black interior; sits behind the glass so it never glares off the panel
-const inner = new THREE.PointLight(0xffffff, 7, 6, 2);
-inner.position.set(0.2, 0.6, 0.35);
+const inner = new THREE.PointLight(0xffffff, 2.5, 5, 2);
+inner.position.set(0.2, 0.6, 0.0);
 lights.push(inner);
 
 const bay = new THREE.SpotLight(0xffffff, 9, 7, 0.5, 0.7, 1.2);   // PSU bay, also inside the glass
@@ -220,7 +209,7 @@ scene.add(bay.target);
 lights.push(bay);
 
 lights.push(new THREE.AmbientLight(0xffffff, 0.28));
-lights.forEach((l) => { l.layers.enable(1); scene.add(l); });
+lights.forEach((l) => scene.add(l));
 
 // rig: the whole PC lives here. rig = cursor parallax, idle = subtle breathing.
 const rig = new THREE.Group();
@@ -300,8 +289,8 @@ const cableMat = new THREE.MeshStandardMaterial({ color: 0xbdbdc2, roughness: 0.
 const plugMat = new THREE.MeshStandardMaterial({ color: 0x1c1c20, roughness: 0.5, metalness: 0.15 });
 const rubberMat = new THREE.MeshStandardMaterial({ color: 0x0c0c0e, roughness: 0.95, metalness: 0.0 });
 
-const PITCH = 0.042;          // wire pitch (4.2 mm on a 10.5 cm = 1 unit scale)
-const WIRE_R = 0.017;         // sleeved wire radius
+const PITCH = 0.04;           // wire pitch (4.2 mm on a 10.5 cm = 1 unit scale)
+const WIRE_R = 0.0135;        // sleeved wire radius (18 AWG + sleeve ≈ 3 mm)
 
 function makeCable(def) {
   const pts = def.pts.map((p) => new THREE.Vector3(...p));
@@ -404,201 +393,10 @@ function makeCable(def) {
 }
 
 /* ------------------------------------------------------------------------ */
-/*  Blur pass - "flying" parts are rendered to an offscreen target,          */
-/*  gaussian-blurred and composited back. Amount = holder.userData.blur.     */
-/* ------------------------------------------------------------------------ */
-
-const blur = (() => {
-  const scale = 0.5;
-  const mk = () => new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: true });
-  const rtA = mk(), rtB = mk();
-  const quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  const quadGeo = new THREE.PlaneGeometry(2, 2);
-
-  const blurMat = new THREE.ShaderMaterial({
-    uniforms: { tDiffuse: { value: null }, dir: { value: new THREE.Vector2() } },
-    vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
-    fragmentShader: `
-      uniform sampler2D tDiffuse; uniform vec2 dir; varying vec2 vUv;
-      void main(){
-        vec4 c = texture2D(tDiffuse, vUv) * 0.1964825;
-        c += texture2D(tDiffuse, vUv + dir * 1.411764) * 0.2969069;
-        c += texture2D(tDiffuse, vUv - dir * 1.411764) * 0.2969069;
-        c += texture2D(tDiffuse, vUv + dir * 3.294117) * 0.0944703;
-        c += texture2D(tDiffuse, vUv - dir * 3.294117) * 0.0944703;
-        c += texture2D(tDiffuse, vUv + dir * 5.176470) * 0.0103814;
-        c += texture2D(tDiffuse, vUv - dir * 5.176470) * 0.0103814;
-        gl_FragColor = c;
-      }`,
-    depthTest: false, depthWrite: false, toneMapped: false,
-  });
-
-  const compMat = new THREE.ShaderMaterial({
-    uniforms: { tDiffuse: { value: null } },
-    vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
-    fragmentShader: `
-      uniform sampler2D tDiffuse; varying vec2 vUv;
-      void main(){
-        vec4 c = texture2D(tDiffuse, vUv);
-        if (c.a < 0.002) discard;
-        vec3 rgb = c.rgb / c.a;                 // un-premultiply, tonemap, re-premultiply
-        gl_FragColor = vec4(rgb, 1.0);
-        #include <tonemapping_fragment>
-        #include <colorspace_fragment>
-        gl_FragColor = vec4(gl_FragColor.rgb * c.a, c.a);
-      }`,
-    transparent: true, depthTest: false, depthWrite: false,
-    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
-  });
-
-  const quad = new THREE.Mesh(quadGeo, blurMat);
-  const quadScene = new THREE.Scene();
-  quadScene.add(quad);
-
-  const size = new THREE.Vector2();
-  function resize() {
-    renderer.getDrawingBufferSize(size);
-    rtA.setSize(Math.max(1, Math.floor(size.x * scale)), Math.max(1, Math.floor(size.y * scale)));
-    rtB.setSize(rtA.width, rtA.height);
-  }
-  resize();
-
-  /** render layer-1 objects blurred by `amount` (0..1) on top of the current frame */
-  function render(amount, maxPx) {
-    const prevLayers = camera.layers.mask;
-    camera.layers.set(1);
-    renderer.setRenderTarget(rtA);
-    renderer.setClearColor(0x000000, 0);
-    renderer.clear(true, true, false);
-    renderer.render(scene, camera);
-    camera.layers.mask = prevLayers;
-
-    const radius = amount * amount * maxPx;                // px at half res
-    const passes = radius > 6 ? 3 : radius > 2 ? 2 : 1;
-    let src = rtA, dst = rtB;
-    quad.material = blurMat;
-    for (let i = 0; i < passes; i++) {
-      const r = radius * (1 - i * 0.3);
-      blurMat.uniforms.dir.value.set(r / rtA.width, 0);
-      blurMat.uniforms.tDiffuse.value = src.texture;
-      renderer.setRenderTarget(dst); renderer.clear(true, false, false); renderer.render(quadScene, quadCam);
-      [src, dst] = [dst, src];
-      blurMat.uniforms.dir.value.set(0, r / rtA.height);
-      blurMat.uniforms.tDiffuse.value = src.texture;
-      renderer.setRenderTarget(dst); renderer.clear(true, false, false); renderer.render(quadScene, quadCam);
-      [src, dst] = [dst, src];
-    }
-
-    renderer.setRenderTarget(null);
-    quad.material = compMat;
-    compMat.uniforms.tDiffuse.value = src.texture;
-    renderer.render(quadScene, quadCam);
-  }
-  return { render, resize, quadScene, quadCam, quad, mk };
-})();
-
-/* ------------------------------------------------------------------------ */
-/*  Outline pass - hovered / just-seated parts get an orange border drawn    */
-/*  around their silhouette: mask (layer 2) -> box dilate r -> dilate r+w,   */
-/*  ring = D2 - D1. The first dilation also fills the scan meshes' pinholes. */
-/* ------------------------------------------------------------------------ */
-
-const outline = (() => {
-  const scale = 0.5;
-  const mkRT = () => new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false, stencilBuffer: false });
-  const rtMask = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: true, stencilBuffer: false });
-  const rtT = mkRT(), rtD1 = mkRT(), rtD2 = mkRT();
-  const vs = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
-
-  const dilateMat = new THREE.ShaderMaterial({
-    uniforms: { tDiffuse: { value: null }, dir: { value: new THREE.Vector2() }, radius: { value: 3 } },
-    vertexShader: vs,
-    fragmentShader: `
-      uniform sampler2D tDiffuse; uniform vec2 dir; uniform float radius; varying vec2 vUv;
-      void main(){
-        float m = 0.0;
-        for (float i = -12.0; i <= 12.0; i += 1.0) {
-          if (abs(i) > radius) continue;
-          m = max(m, texture2D(tDiffuse, vUv + dir * i).r);
-        }
-        gl_FragColor = vec4(m, 0.0, 0.0, 1.0);
-      }`,
-    depthTest: false, depthWrite: false, toneMapped: false,
-  });
-
-  const ringMat = new THREE.ShaderMaterial({
-    uniforms: { tInner: { value: null }, tOuter: { value: null }, color: { value: new THREE.Color(ACCENT) } },
-    vertexShader: vs,
-    fragmentShader: `
-      uniform sampler2D tInner; uniform sampler2D tOuter; uniform vec3 color; varying vec2 vUv;
-      void main(){
-        float a = clamp(texture2D(tOuter, vUv).r - texture2D(tInner, vUv).r, 0.0, 1.0);
-        if (a < 0.003) discard;
-        gl_FragColor = vec4(color * a, a);
-      }`,
-    transparent: true, depthTest: false, depthWrite: false, toneMapped: false,
-    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
-  });
-
-  const size = new THREE.Vector2();
-  function resize() {
-    renderer.getDrawingBufferSize(size);
-    const w = Math.max(1, Math.floor(size.x * scale)), h = Math.max(1, Math.floor(size.y * scale));
-    [rtMask, rtT, rtD1, rtD2].forEach((rt) => rt.setSize(w, h));
-  }
-  resize();
-
-  function dilate(src, dst, radius) {
-    blur.quad.material = dilateMat;
-    dilateMat.uniforms.radius.value = radius;
-    dilateMat.uniforms.tDiffuse.value = src.texture;
-    dilateMat.uniforms.dir.value.set(1 / rtMask.width, 0);
-    renderer.setRenderTarget(rtT); renderer.render(blur.quadScene, blur.quadCam);
-    dilateMat.uniforms.tDiffuse.value = rtT.texture;
-    dilateMat.uniforms.dir.value.set(0, 1 / rtMask.height);
-    renderer.setRenderTarget(dst); renderer.render(blur.quadScene, blur.quadCam);
-  }
-
-  /** draw the ring for every mask mesh on layer 2 (their material brightness = opacity) */
-  function render() {
-    const prevLayers = camera.layers.mask;
-    const prevTM = renderer.toneMapping;
-    renderer.toneMapping = THREE.NoToneMapping;
-    camera.layers.set(2);
-    renderer.setRenderTarget(rtMask);
-    renderer.setClearColor(0x000000, 1);
-    renderer.clear(true, true, false);
-    renderer.render(scene, camera);
-    camera.layers.mask = prevLayers;
-
-    const gap = 3;   // px (half res) between the part and its border
-    const width = 2; // border thickness
-    dilate(rtMask, rtD1, gap);
-    dilate(rtD1, rtD2, width);
-
-    renderer.setRenderTarget(null);
-    blur.quad.material = ringMat;
-    ringMat.uniforms.tInner.value = rtD1.texture;
-    ringMat.uniforms.tOuter.value = rtD2.texture;
-    renderer.render(blur.quadScene, blur.quadCam);
-    renderer.toneMapping = prevTM;
-  }
-  return { render, resize };
-})();
-
-function setLayer(obj, layer) {
-  obj.traverse((o) => { if (!o.userData.mask) o.layers.set(layer); });
-}
-
-/* ------------------------------------------------------------------------ */
 /*  Build scene                                                              */
 /* ------------------------------------------------------------------------ */
 
 const parts = [];      // { def, holders:[{holder, inst}] }
-
-// hover / seat highlight = an orange border around the part's silhouette; each part owns a
-// flat "mask" copy of its meshes on layer 2 whose brightness drives the border opacity
-const noRaycast = () => {};
 
 const cables = CONFIG.cables.map(makeCable);
 cables.forEach((c) => idle.add(c.group));
@@ -648,43 +446,39 @@ async function build() {
   liner.receiveShadow = true;
   caseHolder.add(liner);
 
+  // every part first appears in the white centre column: sharp, centred, facing the camera
+  // straight on, then glides to its slot. Computed from the camera so it tracks the layout.
+  const spawn = new THREE.Vector3();
+  camera.updateMatrixWorld(true);
+  scene.updateMatrixWorld(true);
+  const spawnLocal = (ndcX, ndcY) => {
+    spawn.set(ndcX, ndcY, 0.5).unproject(camera);
+    spawn.sub(camera.position).normalize().multiplyScalar(CONFIG.layout.spawnDist).add(camera.position);
+    return idle.worldToLocal(spawn).toArray();
+  };
+  // holder rotation that cancels the rig's 3/4 turn so `showRot` is seen head-on
+  const rigQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, CONFIG.rig.rotY, 0)).invert();
+  const showQ = new THREE.Quaternion();
+  const showRotFor = (showRot) => {
+    showQ.setFromEuler(new THREE.Euler(...(showRot || [0, 0, 0])));
+    return new THREE.Euler().setFromQuaternion(rigQ.clone().multiply(showQ)).toArray().slice(0, 3);
+  };
+
   for (const def of CONFIG.parts) {
     const pivot = await loadNormalised(def.file, def.size, def.rot, def.fallback, def.order);
-    const instances = def.instances || [{ pos: def.pos, via: def.via, rotEnd: def.rotEnd, from: def.from, fromRot: def.fromRot }];
+    const instances = def.instances || [{ pos: def.pos, via: def.via, rotEnd: def.rotEnd }];
     const holders = instances.map((inst, i) => {
       const src = i === 0 ? pivot : pivot.clone(true);
       const holder = new THREE.Group();
       holder.add(src);
-      // one mask material per part so the border fades independently
-      const maskMat = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide, toneMapped: false });
-      const outlines = [];
-      const meshes = [];
-      src.traverse((o) => { if (o.isMesh && o.material) meshes.push(o); });
-      meshes.forEach((o) => {
-        const m = new THREE.Mesh(o.geometry, maskMat);
-        m.position.copy(o.position); m.rotation.copy(o.rotation); m.scale.copy(o.scale);
-        m.castShadow = false; m.receiveShadow = false;
-        m.raycast = noRaycast;
-        m.visible = false;
-        m.userData.mask = true;
-        m.layers.set(2);
-        o.parent.add(m);
-        outlines.push(m);
-      });
-      holder.userData.outline = maskMat;
-      holder.userData.outlines = outlines;
-      holder.userData.mats = true;  // marks the holder as a pickable part
       holder.userData.id = def.id;
-      holder.userData.glow = 0;     // hover (smoothed)
-      holder.userData.flash = 0;    // seat click (timeline)
-      holder.userData.seated = false;
+      inst.from = spawnLocal(CONFIG.layout.spawnNdcX + (i - (instances.length - 1) / 2) * 0.05, 0.03);
+      inst.fromRot = showRotFor(def.showRot);
+      inst.fromScale = Math.min(1, CONFIG.layout.spawnFit / def.size);   // big parts shrink to fit the column
       holder.position.set(...inst.from);
       holder.rotation.set(...inst.fromRot);
       holder.scale.setScalar(0.0001);
       holder.visible = false;
-      holder.userData.blur = 0;
-      holder.userData.layer = 0;
-      holder.userData.blurPx = 7 + 15 * Math.min(1, def.size / 2.6);   // small parts get less blur so they stay legible
       idle.add(holder);
       return { holder, inst };
     });
@@ -739,45 +533,38 @@ function buildTimeline() {
     },
   });
 
-  // copy blocks - word-by-word headline reveal, eyebrow rule draws, paragraph rises
+  // copy: one sentence per step, word-by-word rise in, rise out
   stepEls.forEach((el, i) => {
     const base = i * STEP;
     const words = el.querySelectorAll('.w > span');
-    const eyebrow = el.querySelector('.eyebrow');
-    const para = el.querySelectorAll('p, .actions');
     const inAt = i === 0 ? -1 : base + 0.08;       // intro is shown by the loader sequence
     if (i !== 0) {
       tl.set(el, { autoAlpha: 1 }, inAt);
-      if (eyebrow) tl.fromTo(eyebrow, { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.25, ease: 'power2.out' }, inAt);
-      tl.fromTo(words, { yPercent: 110, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 0.3, ease: 'power3.out', stagger: 0.035 }, inAt + 0.02);
-      tl.fromTo(para, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out', stagger: 0.06 }, inAt + 0.16);
+      tl.fromTo(words, { y: 34, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: 'power3.out', stagger: 0.03 }, inAt + 0.02);
     }
     if (i !== CONFIG.finalStep) {
       const outAt = base + 0.74;
-      tl.to(words, { yPercent: -110, opacity: 0, duration: 0.22, ease: 'power2.in', stagger: 0.02 }, outAt);
-      tl.to(para, { opacity: 0, y: -16, duration: 0.2, ease: 'power2.in' }, outAt);
-      if (eyebrow) tl.to(eyebrow, { opacity: 0, duration: 0.2 }, outAt);
+      tl.to(words, { y: -26, opacity: 0, duration: 0.22, ease: 'power2.in', stagger: 0.015 }, outAt);
       tl.set(el, { autoAlpha: 0 }, outAt + 0.26);
     }
   });
 
-  // parts: appear beside the PC (heavily blurred) → sharpen while gliding to the
-  // staging point in front of the slot → push straight in
+  // parts: pop into the white centre column (sharp, centred, head-on) → hold → glide to the
+  // staging point in front of the slot while turning to the mounted orientation → push in
   for (const { def, holders } of parts) {
     const base = def.step * STEP;
     holders.forEach(({ holder, inst }, k) => {
-      const d = k * 0.06;                                   // stagger for multi-instance parts
+      const d = k * 0.05;                                   // stagger for multi-instance parts
       const via = inst.via || inst.pos;
+      const s0 = inst.fromScale;
       tl.set(holder, { visible: true }, base + d);
-      tl.fromTo(holder.scale, { x: 0.7, y: 0.7, z: 0.7 }, { x: 1, y: 1, z: 1, duration: 0.45, ease: 'power2.out' }, base + d);
-      tl.fromTo(holder.userData, { blur: 1 }, { blur: 0, duration: 0.6, ease: 'power1.in' }, base + 0.02 + d);
-      // leg 1: glide to the staging point, straightening up
-      tl.to(holder.position, { x: via[0], y: via[1], z: via[2], duration: 0.58, ease: 'power2.inOut' }, base + 0.06 + d);
-      tl.to(holder.rotation, { x: inst.rotEnd[0], y: inst.rotEnd[1], z: inst.rotEnd[2], duration: 0.5, ease: 'power2.inOut' }, base + 0.08 + d);
-      // leg 2: seat it (the "click") + orange flash, then it becomes hoverable
-      tl.to(holder.position, { x: inst.pos[0], y: inst.pos[1], z: inst.pos[2], duration: 0.22, ease: 'power3.in' }, base + 0.68 + d);
-      tl.fromTo(holder.userData, { flash: 1 }, { flash: 0, duration: 0.3, ease: 'power2.out' }, base + 0.9 + d);
-      tl.set(holder.userData, { seated: true }, base + 0.9 + d);     // reverts automatically when scrubbing back
+      tl.fromTo(holder.scale, { x: s0 * 0.86, y: s0 * 0.86, z: s0 * 0.86 }, { x: s0, y: s0, z: s0, duration: 0.16, ease: 'back.out(1.6)' }, base + d);
+      // leg 1: leave the column for the staging point, turning to the mounted orientation
+      tl.to(holder.position, { x: via[0], y: via[1], z: via[2], duration: 0.34, ease: 'power2.inOut' }, base + 0.34 + d);
+      tl.to(holder.rotation, { x: inst.rotEnd[0], y: inst.rotEnd[1], z: inst.rotEnd[2], duration: 0.34, ease: 'power2.inOut' }, base + 0.34 + d);
+      tl.to(holder.scale, { x: 1, y: 1, z: 1, duration: 0.34, ease: 'power2.inOut' }, base + 0.34 + d);
+      // leg 2: seat it (the "click")
+      tl.to(holder.position, { x: inst.pos[0], y: inst.pos[1], z: inst.pos[2], duration: 0.2, ease: 'power3.in' }, base + 0.7 + d);
     });
   }
 
@@ -789,7 +576,7 @@ function buildTimeline() {
 
   // final: a touch more interior light
   const fb = CONFIG.finalStep * STEP;
-  tl.to(inner, { intensity: 16, duration: 0.5 }, fb);
+  tl.to(inner, { intensity: 4, duration: 0.5 }, fb);
 
   // pin the timeline length to exactly `steps` so scroll progress maps 1:1 to step index
   tl.set({}, {}, CONFIG.steps * STEP);
@@ -811,55 +598,13 @@ if (DEBUG) {
   renderer.domElement.style.position = 'fixed';
 }
 
-// cursor parallax (normalised -1..1) + hover picking
+// cursor parallax (normalised -1..1)
 const mouse = new THREE.Vector2(0, 0);
 const mouseSmooth = new THREE.Vector2(0, 0);
-const pointerPx = { x: -1, y: -1, active: false };
 window.addEventListener('pointermove', (e) => {
   if (e.pointerType && e.pointerType !== 'mouse') return;
   mouse.set((e.clientX / window.innerWidth) * 2 - 1, (e.clientY / window.innerHeight) * 2 - 1);
-  pointerPx.x = e.clientX; pointerPx.y = e.clientY; pointerPx.active = true;
 });
-window.addEventListener('pointerleave', () => { pointerPx.active = false; });
-
-const raycaster = new THREE.Raycaster();
-raycaster.layers.set(0);
-const pickNdc = new THREE.Vector2();
-const tagEl = document.getElementById('tag');
-const tagName = document.getElementById('tag-name');
-const tagRole = document.getElementById('tag-role');
-let hovered = null;
-let pickFrame = 0;
-
-function pick() {
-  // every other frame is plenty
-  if ((pickFrame++ & 1) || !pointerPx.active) return;
-  pickNdc.set(mouse.x, -mouse.y);          // NDC y points up
-  raycaster.setFromCamera(pickNdc, camera);
-  const targets = [];
-  for (const { holders } of parts) for (const { holder } of holders) if (holder.visible && holder.userData.seated) targets.push(holder);
-  const hits = targets.length ? raycaster.intersectObjects(targets, true) : [];
-  let hit = null;
-  if (hits.length) {
-    let o = hits[0].object;
-    while (o && !o.userData.mats) o = o.parent;
-    hit = o;
-  }
-  if (hit !== hovered) {
-    hovered = hit;
-    if (hovered) {
-      const [name, role] = LABELS[hovered.userData.id] || [hovered.userData.id, ''];
-      tagName.textContent = name;
-      tagRole.textContent = role;
-      tagEl.classList.add('on');
-      document.body.style.cursor = 'crosshair';
-    } else {
-      tagEl.classList.remove('on');
-      document.body.style.cursor = '';
-    }
-  }
-  if (hovered) tagEl.style.transform = `translate(${pointerPx.x + 14}px, ${pointerPx.y + 14}px)`;
-}
 
 const clock = new THREE.Clock();
 function frame() {
@@ -874,26 +619,8 @@ function frame() {
     camera.lookAt(camTarget);
     // copy drifts the opposite way to the PC for depth
     copyEl.style.transform = `translate3d(${mouseSmooth.x * -10}px, ${mouseSmooth.y * -6}px, 0)`;
-    pick();
   } else {
     controls.update();
-  }
-
-  // hover / seat flash → border opacity (mask brightness)
-  let anyOutline = false;
-  for (const { holders } of parts) {
-    for (const { holder } of holders) {
-      const u = holder.userData;
-      u.glow += ((holder === hovered ? 1 : 0) - u.glow) * 0.14;
-      const k = Math.min(1, Math.max(u.glow, u.flash));
-      if (Math.abs(k - (u.lastK || 0)) > 0.002) {
-        u.lastK = k;
-        u.outline.color.setScalar(k);
-        const show = k > 0.02;
-        for (const h of u.outlines) h.visible = show;
-      }
-      if ((u.lastK || 0) > 0.02 && holder.visible) anyOutline = true;
-    }
   }
 
   scene.updateMatrixWorld();
@@ -901,25 +628,11 @@ function frame() {
     for (let i = 0; i < cutPlanesLocal.length; i++) cutPlanesWorld[i].copy(cutPlanesLocal[i]).applyMatrix4(caseHolder.matrixWorld);
   }
 
-  // split flying (blurred) parts from seated ones
-  let blurAmount = 0, blurPx = 0;
-  for (const { holders } of parts) {
-    for (const { holder } of holders) {
-      const b = holder.visible ? holder.userData.blur : 0;
-      const layer = b > 0.02 ? 1 : 0;
-      if (layer !== holder.userData.layer) { setLayer(holder, layer); holder.userData.layer = layer; }
-      if (layer === 1 && b > blurAmount) { blurAmount = b; blurPx = holder.userData.blurPx; }
-    }
-  }
-
   renderer.setRenderTarget(null);
   renderer.setClearColor(0x000000, 0);
   renderer.clear(true, true, true);
   renderer.shadowMap.needsUpdate = true;
-  camera.layers.set(0);
   renderer.render(scene, camera);
-  if (blurAmount > 0) blur.render(blurAmount, blurPx);
-  if (anyOutline) outline.render();
 
   requestAnimationFrame(frame);
 }
@@ -927,8 +640,6 @@ function frame() {
 function onResize() {
   layout();
   renderer.setSize(window.innerWidth, window.innerHeight, false);
-  blur.resize();
-  outline.resize();
 }
 window.addEventListener('resize', onResize);
 
@@ -955,8 +666,7 @@ build().then(() => {
   if (!DEBUG && window.scrollY < window.innerHeight * 0.3) {
     const intro = stepEls[0];
     gsap.set(intro, { autoAlpha: 1 });
-    gsap.fromTo(intro.querySelectorAll('.w > span'), { yPercent: 110, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 0.9, ease: 'power3.out', stagger: 0.06, delay: 0.55 });
-    gsap.fromTo(intro.querySelectorAll('p'), { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.8, ease: 'power2.out', delay: 1.0 });
+    gsap.fromTo(intro.querySelectorAll('.w > span'), { y: 34, opacity: 0 }, { y: 0, opacity: 1, duration: 0.9, ease: 'power3.out', stagger: 0.05, delay: 0.55 });
   } else if (!DEBUG) {
     gsap.set(stepEls[0], { autoAlpha: 1 });
   }
